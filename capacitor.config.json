@@ -1,0 +1,10 @@
+
+{
+  "appId": "com.impactox.control",
+  "appName": "Impacto X Control",
+  "webDir": ".",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}
