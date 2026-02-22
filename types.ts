@@ -2,6 +2,7 @@
 export interface UserProfile {
   id: string;
   nome: string;
+  email: string;
   cargo: string;
   avatar: string;
   cor: string;
@@ -17,26 +18,35 @@ export interface AccessLog {
 }
 
 export interface Capitacao {
-  id: number;
+  id: string | number;
   nome: string;
   cnpj: string;
   valor_proposta: number;
   valor_pago: number;
   margem: number;
-  status: 'ativo' | 'vencido' | 'pendente';
+  status: 'ativo' | 'inativo' | 'vencido' | 'pendente';
   empreendimento: string;
   mes: string;
   data: string;
   data_inicio: string;
   periodo: string;
+  userId?: string;
+  // Novos campos de endereço
+  logradouro?: string;
+  numero?: string;
+  bairro?: string;
+  cidade?: string;
+  uf?: string;
+  cep?: string;
 }
 
 export interface Empreendimento {
-  id: number;
+  id: string | number;
   nome: string;
   profissional: string;
   data: string;
   status: 'concluido' | 'agendado';
+  userId?: string;
 }
 
 export type AppTab = 'Dashboard' | 'Capitações' | 'Empreendimentos' | 'Novo' | 'Config';

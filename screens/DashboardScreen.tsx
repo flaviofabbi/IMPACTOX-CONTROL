@@ -1,9 +1,9 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import FinanceChart from '../components/FinanceChart';
 import StatCard from '../components/StatCard';
 import { Capitacao } from '../types';
-import { DollarSign, TrendingUp, Briefcase, Activity, Target, CheckCircle, UploadCloud, CloudCheck, CloudLightning } from 'lucide-react';
+import { DollarSign, Briefcase, Activity, CheckCircle, UploadCloud, CloudLightning } from 'lucide-react';
 
 interface Props {
   capitacoes: Capitacao[];
@@ -15,6 +15,35 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing }) =
   const [filter, setFilter] = useState('all');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const MARGEM_META = 20;
+
+  // Filtragem centralizada e memorizada para performance
+  const activeCapitacoes = useMemo(() => 
+    capitacoes.filter(c => c.status !== 'inativo'), 
+    [capitacoes]
+  );
+
+  const stats = useMemo(() => {
+    const data = filter === 'all' ? activeCapitacoes : activeCapitacoes.slice(-6);
+    const totalReceita = data.reduce((a, b) => a + (b.valor_pago || 0), 0);
+    const totalMargem = data.reduce((a, b) => a + (b.margem || 0), 0);
+    const avgMargin = totalReceita > 0 ? (totalMargem / totalReceita) * 100 : 0;
+    const projetosNaMeta = data.filter(c => {
+      const margemCalculada = (c.margem / (c.valor_pago || 1)) * 100;
+      return margemCalculada >= MARGEM_META;
+    }).length;
+
+    return {
+      totalReceita,
+      avgMargin,
+      projetosNaMeta,
+      count: data.length,
+      chartData: [...data].reverse().map(c => ({
+        label: c.mes,
+        value: c.valor_pago
+      })),
+      displayData: data
+    };
+  }, [activeCapitacoes, filter]);
 
   if (capitacoes.length === 0) {
     return (
@@ -49,20 +78,9 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing }) =
     );
   }
 
-  const filteredData = filter === 'all' ? capitacoes : capitacoes.slice(-6); 
-  const totalReceita = filteredData.reduce((a, b) => a + b.valor_pago, 0);
-  const totalMargem = filteredData.reduce((a, b) => a + b.margem, 0);
-  const avgMargin = totalReceita > 0 ? (totalMargem / totalReceita) * 100 : 0;
-  const projetosNaMeta = filteredData.filter(c => (c.margem / c.valor_pago) * 100 >= MARGEM_META).length;
-
   const formatCurrency = (value: number) => {
     return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
-
-  const chartData = [...filteredData].reverse().map(c => ({
-    label: c.mes,
-    value: c.valor_pago
-  }));
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -72,12 +90,12 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing }) =
             Visão <span className="text-sky-500">Operacional</span>
           </h2>
           <p className="text-sky-500/50 mt-0.5 text-[8px] font-black uppercase tracking-wider">
-            Target Global: <span className="text-emerald-400 font-black">{MARGEM_META}% ROI</span>
+            Target Global (Ativos): <span className="text-emerald-400 font-black">{MARGEM_META}% ROI</span>
           </p>
         </div>
         
         <div className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg border self-start md:self-center ${isSyncing ? 'bg-amber-500/5 border-amber-500/20 text-amber-400' : 'bg-sky-500/5 border-sky-500/20 text-sky-400'}`}>
-          {isSyncing ? <CloudLightning size={12} className="animate-spin" /> : <CloudCheck size={12} />}
+          {isSyncing ? <CloudLightning size={12} className="animate-spin" /> : <CheckCircle size={12} />}
           <span className="text-[8px] font-black uppercase tracking-widest">
             {isSyncing ? 'Syncing' : 'Link OK'}
           </span>
@@ -85,27 +103,27 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing }) =
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <StatCard title="Faturamento" value={formatCurrency(totalReceita)} icon={<DollarSign />} color="bg-sky-600" />
-        <StatCard title="Entregas" value={`${projetosNaMeta}/${filteredData.length}`} trendUp={avgMargin >= MARGEM_META} icon={<CheckCircle />} color="bg-emerald-600" />
-        <StatCard title="ROI Médio" value={`${avgMargin.toFixed(1)}%`} trendUp={avgMargin >= MARGEM_META} icon={<Activity />} color="bg-indigo-600" />
-        <StatCard title="Unidades" value={filteredData.length.toString()} icon={<Briefcase />} color="bg-slate-700" />
+        <StatCard title="Receita Ativa" value={formatCurrency(stats.totalReceita)} icon={<DollarSign />} color="bg-sky-600" />
+        <StatCard title="Na Meta" value={`${stats.projetosNaMeta}/${stats.count}`} trendUp={stats.avgMargin >= MARGEM_META} icon={<CheckCircle />} color="bg-emerald-600" />
+        <StatCard title="ROI Médio" value={`${stats.avgMargin.toFixed(1)}%`} trendUp={stats.avgMargin >= MARGEM_META} icon={<Activity />} color="bg-indigo-600" />
+        <StatCard title="Unid. Ativas" value={stats.count.toString()} icon={<Briefcase />} color="bg-slate-700" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2">
           <div className="x-glass p-5 rounded-[2rem] border border-sky-500/10">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-black text-white uppercase tracking-tighter">Fluxo de Capital</h3>
+              <h3 className="text-sm font-black text-white uppercase tracking-tighter">Fluxo de Capital (Somente Ativos)</h3>
               <select 
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
                 className="bg-slate-950/50 border border-sky-500/20 rounded-lg px-2 py-1 text-sky-400 text-[8px] font-black uppercase tracking-widest outline-none"
               >
                 <option value="all">Full</option>
-                <option value="recent">H2/24</option>
+                <option value="recent">Últimos 6</option>
               </select>
             </div>
-            <FinanceChart data={chartData} />
+            <FinanceChart data={stats.chartData} />
           </div>
         </div>
 
@@ -113,8 +131,8 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing }) =
           <div className="x-glass p-5 rounded-[2rem] border border-sky-500/10 h-full">
             <h3 className="text-sm font-black text-white uppercase tracking-tighter mb-4">Performance Ativa</h3>
             <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
-              {filteredData.map((projeto) => {
-                const marginPercent = (projeto.margem / projeto.valor_pago) * 100;
+              {stats.displayData.map((projeto) => {
+                const marginPercent = (projeto.margem / (projeto.valor_pago || 1)) * 100;
                 const hitTarget = marginPercent >= MARGEM_META;
                 return (
                   <div key={projeto.id} className="p-3 bg-sky-500/5 border border-sky-500/10 rounded-xl group hover:border-sky-500/40 transition-all">
@@ -128,11 +146,14 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing }) =
                       </div>
                     </div>
                     <div className="w-full h-1 bg-slate-950 rounded-full overflow-hidden mt-2">
-                      <div className={`h-full transition-all duration-1000 ${hitTarget ? 'bg-sky-400' : 'bg-amber-400'}`} style={{ width: `${Math.min(marginPercent, 100)}%` }}></div>
+                      <div className={`h-full transition-all duration-1000 ${hitTarget ? 'bg-sky-400' : 'bg-amber-400'}`} style={{ width: `${Math.min(Math.max(marginPercent, 0), 100)}%` }}></div>
                     </div>
                   </div>
                 );
               })}
+              {stats.displayData.length === 0 && (
+                <p className="text-[10px] text-slate-500 font-black uppercase text-center py-10 tracking-widest">Sem unidades ativas para listar.</p>
+              )}
             </div>
           </div>
         </div>

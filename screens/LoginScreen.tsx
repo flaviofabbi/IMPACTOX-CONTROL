@@ -1,90 +1,127 @@
 
-import React from 'react';
-import { UserProfile } from '../types';
-import { ShieldCheck, ChevronRight, Fingerprint, Lock } from 'lucide-react';
+import React, { useState } from 'react';
+import { db } from '../lib/database';
+import { Fingerprint, Lock, Mail, User, AlertCircle, Loader2, ChevronRight } from 'lucide-react';
 
 interface Props {
-  users: UserProfile[];
-  onSelectUser: (user: UserProfile) => void;
   systemName: string;
+  onLogin: () => void;
 }
 
-const LoginScreen: React.FC<Props> = ({ users, onSelectUser, systemName }) => {
-  const renderSystemName = (name: string) => {
-    const parts = name.split(' ');
-    if (parts.length === 1) {
-      if (name.toUpperCase().includes('X')) {
-        const xPos = name.toUpperCase().indexOf('X');
-        return (
-          <>
-            {name.substring(0, xPos)}
-            <span className="text-sky-500 drop-shadow-[0_0_10px_rgba(14,165,233,0.5)]">{name.substring(xPos, xPos + 1)}</span>
-            {name.substring(xPos + 1)}
-          </>
-        );
+const getAvatar = (name: string) => 
+  `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}&backgroundColor=0f172a&fontWeight=700&fontSize=45&fontFamily=Inter`;
+
+const LoginScreen: React.FC<Props> = ({ systemName, onLogin }) => {
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      if (isRegistering) {
+        if (!name) throw new Error("Nome é obrigatório");
+        const userCredential = await db.auth.signup(email, password);
+        const profile = {
+          id: userCredential.user.uid,
+          nome: name,
+          email: email,
+          cargo: 'Operador',
+          avatar: getAvatar(name),
+          cor: 'from-sky-500 to-blue-700'
+        };
+        await db.users.setProfile(userCredential.user.uid, profile);
+      } else {
+        await db.auth.login(email, password);
       }
-      return name;
+      onLogin();
+    } catch (err: any) {
+      console.error(err);
+      if (err.code === 'auth/wrong-password') setError('Senha incorreta.');
+      else if (err.code === 'auth/user-not-found') setError('Usuário não encontrado.');
+      else if (err.code === 'auth/email-already-in-use') setError('E-mail já cadastrado.');
+      else setError('Falha na autenticação: ' + err.message);
+    } finally {
+      setIsLoading(false);
     }
-    const lastPart = parts.pop();
-    return (
-      <>
-        {parts.join(' ')} <span className="text-sky-500 drop-shadow-[0_0_10px_rgba(14,165,233,0.5)]">{lastPart}</span>
-      </>
-    );
   };
 
   return (
-    <div className="fixed inset-0 bg-[#020617] z-[200] flex flex-col items-center justify-center p-8 overflow-y-auto">
-      <div className="absolute top-[-5%] left-[-5%] w-64 h-64 bg-sky-500/5 rounded-full blur-[100px]"></div>
-      <div className="absolute bottom-[-5%] right-[-5%] w-64 h-64 bg-sky-600/5 rounded-full blur-[100px]"></div>
-
-      <div className="w-full max-w-md text-center mb-12 animate-in fade-in slide-in-from-top-6 duration-1000 relative z-10">
-        <div className="inline-flex p-5 rounded-[2rem] bg-sky-500/5 mb-6 border border-sky-500/15 shadow-xl">
-          <Fingerprint size={40} className="text-sky-500 animate-pulse" />
+    <div className="fixed inset-0 bg-[#020617] z-[200] flex flex-col items-center justify-center p-6 md:p-8">
+      <div className="w-full max-w-md text-center mb-8 animate-in fade-in zoom-in duration-700">
+        <div className="inline-flex p-5 rounded-full bg-sky-500/10 mb-6 border border-sky-500/20">
+          <Fingerprint size={48} className="text-sky-500 animate-pulse" />
         </div>
-        <h1 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tighter leading-none mb-3">
-          {renderSystemName(systemName)}
+        <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">
+          Impacto <span className="text-sky-500">X</span> Mobile
         </h1>
-        <div className="flex items-center justify-center gap-2">
-          <div className="h-[1px] w-6 bg-sky-500/20"></div>
-          <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em]">Secure Access</span>
-          <div className="h-[1px] w-6 bg-sky-500/20"></div>
-        </div>
+        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.3em] mt-2">Cloud Backend Ativo</p>
       </div>
 
-      <div className="w-full max-w-sm space-y-3 animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-200 relative z-10">
-        <p className="text-center text-[9px] font-black text-sky-500/40 uppercase tracking-widest mb-4">Selecione Perfil Autorizado</p>
-        
-        {users.map((user) => (
+      <div className="w-full max-w-sm x-glass p-8 rounded-[2.5rem] shadow-2xl animate-in slide-in-from-bottom-8 duration-700">
+        <form onSubmit={handleAuth} className="space-y-4">
+          {isRegistering && (
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-black text-slate-500 uppercase ml-2">Nome Completo</label>
+              <div className="relative">
+                <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input required type="text" placeholder="Como quer ser chamado?" className="w-full pl-12 pr-4 py-4 bg-slate-950/50 border border-slate-800 rounded-2xl text-white text-xs outline-none focus:border-sky-500/50" value={name} onChange={e => setName(e.target.value)} />
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-black text-slate-500 uppercase ml-2">E-mail</label>
+            <div className="relative">
+              <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+              <input required type="email" placeholder="seu@email.com" className="w-full pl-12 pr-4 py-4 bg-slate-950/50 border border-slate-800 rounded-2xl text-white text-xs outline-none focus:border-sky-500/50" value={email} onChange={e => setEmail(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-black text-slate-500 uppercase ml-2">Senha</label>
+            <div className="relative">
+              <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+              <input required type="password" placeholder="Mínimo 6 caracteres" className="w-full pl-12 pr-4 py-4 bg-slate-950/50 border border-slate-800 rounded-2xl text-white text-xs outline-none focus:border-sky-500/50" value={password} onChange={e => setPassword(e.target.value)} />
+            </div>
+          </div>
+
+          {error && (
+            <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-[10px] font-bold">
+              <AlertCircle size={14} /> {error}
+            </div>
+          )}
+
           <button
-            key={user.id}
-            onClick={() => onSelectUser(user)}
-            className="group w-full relative p-4 bg-slate-900/40 backdrop-blur-md border border-sky-500/10 rounded-[2rem] flex items-center gap-4 hover:bg-sky-500/10 hover:border-sky-500/30 transition-all duration-300 active:scale-95 text-left shadow-lg"
+            disabled={isLoading}
+            type="submit"
+            className="w-full py-4 bg-sky-600 hover:bg-sky-500 disabled:bg-slate-800 text-white font-black rounded-2xl transition-all flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest shadow-xl shadow-sky-900/40 active:scale-95 cursor-pointer"
           >
-            <div className={`absolute inset-y-5 left-0 w-1 rounded-r-full bg-gradient-to-b ${user.cor}`}></div>
-            
-            <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${user.cor} p-0.5 shrink-0 shadow-xl group-hover:scale-105 transition-transform`}>
-              <img src={user.avatar} className="w-full h-full rounded-[0.9rem] bg-slate-950 object-cover" alt={user.nome} />
-            </div>
-
-            <div className="flex-1 overflow-hidden">
-              <h3 className="text-base font-black text-white leading-none mb-1 group-hover:text-sky-400 transition-colors truncate">{user.nome}</h3>
-              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest truncate">{user.cargo}</p>
-            </div>
-
-            <div className="w-9 h-9 rounded-full bg-slate-800/50 flex items-center justify-center text-slate-600 group-hover:bg-sky-500 group-hover:text-white transition-all">
-              <ChevronRight size={18} />
-            </div>
+            {isLoading ? <Loader2 size={18} className="animate-spin" /> : (
+              <>
+                {isRegistering ? 'Criar Conta' : 'Acessar Cloud'}
+                <ChevronRight size={18} />
+              </>
+            )}
           </button>
-        ))}
-      </div>
+        </form>
 
-      <div className="mt-16 text-slate-600 text-[8px] font-black uppercase tracking-[0.5em] flex flex-col items-center gap-3 relative z-10">
-        <div className="flex items-center gap-2">
-          <ShieldCheck size={12} className="text-emerald-500/50" /> 
-          <span>AES-256 Persistent</span>
+        <div className="mt-6 text-center">
+          <button 
+            type="button"
+            onClick={() => setIsRegistering(!isRegistering)}
+            className="text-[9px] font-black text-slate-500 uppercase tracking-widest hover:text-sky-400 transition-colors"
+          >
+            {isRegistering ? 'Já possui conta? Entrar' : 'Novo por aqui? Criar acesso Cloud'}
+          </button>
         </div>
-        <div className="h-0.5 w-8 bg-sky-500/20 rounded-full"></div>
       </div>
     </div>
   );

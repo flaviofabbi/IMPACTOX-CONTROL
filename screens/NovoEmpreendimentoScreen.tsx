@@ -25,8 +25,16 @@ const NovoEmpreendimentoScreen: React.FC<Props> = ({ onSave, onCancel }) => {
     onSave(formData);
   };
 
+  const handleDiscard = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (window.confirm('As informações preenchidas serão perdidas. Deseja realmente descartar este registro?')) {
+      onCancel();
+    }
+  };
+
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-lg mx-auto pb-10">
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-lg mx-auto pb-32 px-1">
       <div className="mb-6">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
           <Briefcase className="text-sky-500" size={20} /> Novo Empreendimento
@@ -100,14 +108,14 @@ const NovoEmpreendimentoScreen: React.FC<Props> = ({ onSave, onCancel }) => {
         <div className="pt-4 flex gap-3">
           <button 
             type="button"
-            onClick={onCancel}
-            className="flex-1 py-3 bg-slate-800 text-slate-400 font-bold rounded-xl text-[9px] uppercase tracking-widest hover:bg-slate-700 transition-colors"
+            onClick={handleDiscard}
+            className="flex-1 py-3 bg-slate-800 text-slate-400 font-bold rounded-xl text-[9px] uppercase tracking-widest hover:bg-slate-700 transition-colors cursor-pointer"
           >
-            Cancelar
+            Descartar
           </button>
           <button 
             type="submit"
-            className="flex-[2] py-3 bg-sky-600 text-white font-bold rounded-xl text-[9px] uppercase tracking-widest shadow-lg shadow-sky-900/20 hover:bg-sky-500 transition-colors flex items-center justify-center gap-2"
+            className="flex-[2] py-3 bg-sky-600 text-white font-bold rounded-xl text-[9px] uppercase tracking-widest shadow-lg shadow-sky-900/20 hover:bg-sky-500 transition-colors flex items-center justify-center gap-2 cursor-pointer"
           >
             <Save size={14} /> Salvar Unidade
           </button>

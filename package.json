@@ -1,5 +1,5 @@
 {
-  "name": "impacto-x-control",
+  "name": "pontos-capitação-impacto-x",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,10 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "lucide-react": "^0.563.0",
-    "react-dom": "^19.2.4",
-    "recharts": "^3.7.0",
     "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "lucide-react": "0.463.0",
+    "recharts": "2.13.0",
     "xlsx": "0.18.5"
   },
   "devDependencies": {
