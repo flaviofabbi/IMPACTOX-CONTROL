@@ -24,16 +24,16 @@ export interface Capitacao {
   nomeFantasia?: string;
   cnpj: string;
   endereco?: string;
-  valor_proposta: number; // valorFechado
-  valor_pago: number;     // valorReal
+  valorContratado: number;
+  valorRepassado: number;
   margem: number;
   percentual?: number;
-  status: 'ativo' | 'inativo' | 'vencido' | 'pendente';
-  empreendimento: string;
-  mes: string;
-  data: string;
-  data_inicio: string;
-  periodo: string;
+  status: 'ativo' | 'vencendo' | 'vencido' | 'inativo';
+  empreendimentoId: string | number;
+  empreendimentoNome: string;
+  dataInicio: string;
+  tempoContrato: number; // meses
+  dataTermino: string;
   userId?: string;
   createdAt?: any;
   // Campos de endereço detalhados (mantidos para compatibilidade)
@@ -48,10 +48,12 @@ export interface Capitacao {
 export interface Empreendimento {
   id: string | number;
   nome: string;
-  profissional: string;
-  data: string;
-  status: 'concluido' | 'agendado';
+  responsavel: string;
+  telefone: string;
+  email: string;
+  status: 'ativo' | 'inativo';
   userId?: string;
+  createdAt?: any;
 }
 
 export type AppTab = 'Dashboard' | 'Capitações' | 'Empreendimentos' | 'Novo' | 'Config';

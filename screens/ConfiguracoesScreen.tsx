@@ -17,6 +17,8 @@ interface Props {
   onSync: () => void;
   systemName: string;
   onSystemNameChange: (name: string) => void;
+  logoUrl: string;
+  onLogoChange: (url: string) => void;
 }
 
 const GRADIENTS = [
@@ -35,7 +37,7 @@ const getProfessionalIcon = (name: string) =>
 const ConfiguracoesScreen: React.FC<Props> = ({ 
   users, onAddUser, onUpdateUser, onDeleteUser,
   onLogout, onImport, capitacoes, empreendimentos, accessLogs, isSyncing, lastSync, onSync,
-  systemName, onSystemNameChange
+  systemName, onSystemNameChange, logoUrl, onLogoChange
 }) => {
   const [dbId] = useState(() => localStorage.getItem('ix_db_id') || 'DB-' + Math.random().toString(36).substr(2, 6).toUpperCase());
   const [editingUser, setEditingUser] = useState<UserProfile | Partial<UserProfile> | null>(null);
@@ -43,6 +45,7 @@ const ConfiguracoesScreen: React.FC<Props> = ({
   const [copied, setCopied] = useState(false);
   
   const snapshotInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const calculateStorageSize = () => {
     const data = JSON.stringify(localStorage);
@@ -131,12 +134,77 @@ const ConfiguracoesScreen: React.FC<Props> = ({
         }
       }} />
 
-      <div className="mb-8">
-        <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic">Configurações</h2>
-        <p className="text-slate-500 text-[8px] font-black uppercase tracking-[0.3em] mt-1">Terminal de Operações Local</p>
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic">Configurações</h2>
+          <p className="text-slate-500 text-[8px] font-black uppercase tracking-[0.3em] mt-1">Terminal de Operações Local</p>
+        </div>
+        <img src={logoUrl} className="w-12 h-12 rounded-xl object-cover border border-sky-500/20 shadow-lg" alt="Logo" />
       </div>
 
       <div className="space-y-4">
+        {/* Gestão de Logotipo e Identidade */}
+        <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-6 shadow-xl">
+          <h3 className="text-xs font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
+            <Palette size={14} className="text-sky-500" /> Identidade Visual
+          </h3>
+          
+          <div className="flex flex-col md:flex-row items-center gap-6">
+            <div className="relative group">
+              <div className="w-24 h-24 rounded-2xl bg-slate-950 border border-slate-800 overflow-hidden shadow-2xl">
+                <img src={logoUrl} className="w-full h-full object-cover" alt="Logo Atual" />
+              </div>
+              <button 
+                onClick={() => logoInputRef.current?.click()}
+                className="absolute -bottom-2 -right-2 p-2 bg-sky-600 text-white rounded-xl shadow-lg hover:bg-sky-500 transition-all active:scale-90"
+              >
+                <Edit size={14} />
+              </button>
+              <input 
+                type="file" 
+                ref={logoInputRef} 
+                className="hidden" 
+                accept="image/*" 
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => onLogoChange(ev.target?.result as string);
+                    reader.readAsDataURL(file);
+                  }
+                }} 
+              />
+            </div>
+            
+            <div className="flex-1 space-y-3 w-full">
+              <div className="space-y-1">
+                <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-1">Nome do Sistema</label>
+                <input 
+                  type="text" 
+                  value={systemName} 
+                  onChange={(e) => onSystemNameChange(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:border-sky-500/50 transition-all"
+                  placeholder="Ex: Impacto X"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => logoInputRef.current?.click()}
+                  className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-white text-[8px] font-black uppercase tracking-widest rounded-xl transition-all"
+                >
+                  Alterar Logotipo
+                </button>
+                <button 
+                  onClick={() => onLogoChange("https://picsum.photos/seed/impacto-x/400/400")}
+                  className="px-4 py-3 bg-slate-950 border border-slate-800 text-slate-500 hover:text-rose-400 text-[8px] font-black uppercase tracking-widest rounded-xl transition-all"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Painel de Transferência */}
         <div className="bg-gradient-to-br from-sky-600 to-blue-700 rounded-[2.5rem] p-6 shadow-xl relative overflow-hidden group">
           <div className="relative z-10">

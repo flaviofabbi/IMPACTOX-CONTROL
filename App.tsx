@@ -16,8 +16,8 @@ const App: React.FC = () => {
   const [editingCapitacao, setEditingCapitacao] = useState<Capitacao | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   
-  const [systemName, setSystemName] = useState('Impacto X Mobile');
-  const [logoUrl, setLogoUrl] = useState("https://api.dicebear.com/7.x/shapes/svg?seed=impacto&backgroundColor=0ea5e9");
+  const [logoUrl, setLogoUrl] = useState("https://picsum.photos/seed/impacto-x/400/400");
+  const [systemName, setSystemName] = useState('Impacto X');
 
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [capitacoes, setCapitacoes] = useState<Capitacao[]>([]);
@@ -26,17 +26,21 @@ const App: React.FC = () => {
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
+    const savedLogo = localStorage.getItem('impacto_logo');
+    if (savedLogo) setLogoUrl(savedLogo);
+    
+    const timeout = setTimeout(() => {
+      if (isInitializing) {
+        console.warn("Initialization timed out, forcing login screen");
+        setIsInitializing(false);
+      }
+    }, 5000);
+
     const unsubscribe = db.auth.onAuthStateChanged(async (user) => {
-      setIsInitializing(true);
       try {
         if (user) {
-          // Tenta buscar o perfil
           let profile = await db.users.getProfile(user.uid);
-          
-          // Se não encontrar, pode ser um novo cadastro. Vamos tentar criar um perfil básico
-          // ou aguardar um pouco se o cadastro estiver em curso no LoginScreen.
           if (!profile) {
-            console.log("Perfil não encontrado, criando perfil temporário para:", user.email);
             profile = {
               id: user.uid,
               nome: user.displayName || user.email?.split('@')[0] || 'Operador',
@@ -45,10 +49,7 @@ const App: React.FC = () => {
               avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${user.uid}`,
               cor: 'from-sky-500 to-blue-700'
             };
-            // Não salvamos no banco aqui para não conflitar com o LoginScreen, 
-            // apenas permitimos o acesso local.
           }
-          
           setCurrentUser(profile);
           await refreshData(profile.id);
         } else {
@@ -59,19 +60,24 @@ const App: React.FC = () => {
         setCurrentUser(null);
       } finally {
         setIsInitializing(false);
+        clearTimeout(timeout);
       }
     });
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   const refreshData = async (userId: string) => {
     setIsSyncing(true);
     try {
       const [caps, emps, allUsers] = await Promise.all([
-        db.capitacoes.getAll(userId),
-        db.empreendimentos.getAll(userId),
-        db.users.getAll()
+        db.capitacoes.getAll(userId).catch(() => []),
+        db.empreendimentos.getAll(userId).catch(() => []),
+        db.users.getAll().catch(() => [])
       ]);
+      
       setCapitacoes(caps);
       setEmpreendimentos(emps);
       setUsers(allUsers);
@@ -85,6 +91,11 @@ const App: React.FC = () => {
   const handleLogout = async () => {
     await db.auth.logout();
     setCurrentUser(null);
+  };
+
+  const handleLogoChange = (newLogo: string) => {
+    setLogoUrl(newLogo);
+    localStorage.setItem('impacto_logo', newLogo);
   };
 
   const handleImportData = async (data: any) => {
@@ -118,13 +129,36 @@ const App: React.FC = () => {
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-sky-500/20 border-t-sky-500 rounded-full animate-spin"></div>
           <p className="text-sky-500/50 text-[10px] font-black uppercase tracking-widest animate-pulse">Impacto X Terminal...</p>
+          <button 
+            onClick={() => setIsInitializing(false)}
+            className="mt-8 px-6 py-2 bg-slate-900 border border-slate-800 text-slate-500 text-[8px] font-black uppercase tracking-widest rounded-full hover:bg-slate-800 hover:text-white transition-all"
+          >
+            Pular Carregamento
+          </button>
         </div>
       </div>
     );
   }
 
   if (!currentUser) {
-    return <LoginScreen systemName={systemName} onLogin={() => {}} />;
+    return (
+      <LoginScreen 
+        systemName={systemName} 
+        logoUrl={logoUrl}
+        onLogin={() => {
+          const guestUser: UserProfile = {
+            id: 'guest_user',
+            nome: 'Usuário Convidado',
+            email: 'guest@impactox.com',
+            cargo: 'Administrador (Demo)',
+            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=guest',
+            cor: 'from-emerald-500 to-teal-700'
+          };
+          setCurrentUser(guestUser);
+          refreshData(guestUser.id);
+        }} 
+      />
+    );
   }
 
   return (
@@ -135,17 +169,36 @@ const App: React.FC = () => {
         setActiveTab(tab);
       }} 
       logoUrl={logoUrl} 
-      onLogoChange={setLogoUrl}
+      onLogoChange={handleLogoChange}
       currentUser={currentUser}
       onSwitchUser={handleLogout}
       systemName={systemName}
     >
-      {activeTab === 'Dashboard' && <DashboardScreen capitacoes={capitacoes} isSyncing={isSyncing} onImport={handleImportData} />}
+      {activeTab === 'Dashboard' && (
+        <DashboardScreen 
+          capitacoes={capitacoes} 
+          isSyncing={isSyncing} 
+          onImport={handleImportData} 
+          logoUrl={logoUrl}
+          onNavigate={(tab) => {
+            if (tab === 'NovaCapitacao') {
+              setNewType('capitacao');
+              setActiveTab('Novo');
+            } else if (tab === 'NovoEmpreendimento') {
+              setNewType('empreendimento');
+              setActiveTab('Novo');
+            } else {
+              setActiveTab(tab);
+            }
+          }}
+        />
+      )}
       
       {activeTab === 'Capitações' && (
         <CapitacoesScreen 
           capitacoes={capitacoes} 
           empreendimentos={empreendimentos}
+          logoUrl={logoUrl}
           onDelete={async (id) => { 
             await db.capitacoes.delete(id.toString()); 
             await refreshData(currentUser.id); 
@@ -166,6 +219,7 @@ const App: React.FC = () => {
       {activeTab === 'Empreendimentos' && (
         <PlantoesScreen 
           empreendimentos={empreendimentos} 
+          logoUrl={logoUrl}
           onAddRequest={() => { setNewType('empreendimento'); setActiveTab('Novo'); }} 
           onDelete={async (id) => { 
             await db.empreendimentos.delete(id.toString()); 
@@ -184,6 +238,7 @@ const App: React.FC = () => {
             empreendimentos={empreendimentos}
             capitacoes={capitacoes}
             initialData={editingCapitacao || undefined}
+            logoUrl={logoUrl}
             onSave={async (nova) => {
               await db.capitacoes.save({
                 ...nova,
@@ -200,6 +255,7 @@ const App: React.FC = () => {
           />
         ) : (
           <NovoEmpreendimentoScreen 
+            logoUrl={logoUrl}
             onSave={async (nova) => {
               await db.empreendimentos.save({ ...nova, userId: currentUser.id });
               await refreshData(currentUser.id);
@@ -213,6 +269,8 @@ const App: React.FC = () => {
       {activeTab === 'Config' && (
         <ConfiguracoesScreen 
           users={users} 
+          logoUrl={logoUrl}
+          onLogoChange={handleLogoChange}
           onAddUser={async (u) => { 
              const uid = 'u_' + Math.random().toString(36).substr(2, 9);
              await db.users.setProfile(uid, { ...u, id: uid });

@@ -9,9 +9,10 @@ interface Props {
   initialData?: Capitacao;
   onSave: (data: Omit<Capitacao, 'id' | 'data' | 'mes'>) => void;
   onCancel: () => void;
+  logoUrl: string;
 }
 
-const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, initialData, onSave, onCancel }) => {
+const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, initialData, onSave, onCancel, logoUrl }) => {
   const isEditing = !!initialData;
   const [isFetchingCnpj, setIsFetchingCnpj] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -22,16 +23,18 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, ini
     nomeFantasia: '',
     cnpj: '',
     endereco: '',
-    valor_proposta_display: '',
-    valor_pago_display: '',
-    valor_proposta: 0,
-    valor_pago: 0,
+    valorContratado: 0,
+    valorRepassado: 0,
+    valorContratado_display: '',
+    valorRepassado_display: '',
     margem: 0,
     percentual: 0,
-    empreendimento: empreendimentos.length > 0 ? empreendimentos[0].nome : '',
-    status: 'ativo' as 'ativo' | 'inativo' | 'vencido' | 'pendente',
-    data_inicio: new Date().toISOString().split('T')[0],
-    periodo: '',
+    empreendimentoId: empreendimentos.length > 0 ? empreendimentos[0].id : '',
+    empreendimentoNome: empreendimentos.length > 0 ? empreendimentos[0].nome : '',
+    status: 'ativo' as 'ativo' | 'vencendo' | 'vencido' | 'inativo',
+    dataInicio: new Date().toISOString().split('T')[0],
+    tempoContrato: 12, // meses padrão
+    dataTermino: '',
     logradouro: '',
     numero: '',
     bairro: '',
@@ -112,7 +115,7 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, ini
     }
   };
 
-  const handleCurrencyChange = (field: 'valor_proposta' | 'valor_pago', value: string) => {
+  const handleCurrencyChange = (field: 'valorContratado' | 'valorRepassado', value: string) => {
     let cleanValue = value.replace(/\D/g, '');
     let numberValue = (Number(cleanValue) / 100);
     const masked = numberValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -124,6 +127,25 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, ini
     }));
   };
 
+  const calculateEndDate = (start: string, months: number) => {
+    if (!start) return '';
+    const date = new Date(start);
+    date.setMonth(date.getMonth() + months);
+    return date.toISOString().split('T')[0];
+  };
+
+  const calculateStatus = (endDate: string) => {
+    if (!endDate) return 'ativo';
+    const today = new Date();
+    const end = new Date(endDate);
+    const diffTime = end.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) return 'vencido';
+    if (diffDays <= 30) return 'vencendo';
+    return 'ativo';
+  };
+
   useEffect(() => {
     if (isEditing && initialData) {
       setFormData({
@@ -132,16 +154,18 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, ini
         nomeFantasia: initialData.nomeFantasia || '',
         cnpj: initialData.cnpj,
         endereco: initialData.endereco || '',
-        valor_proposta: initialData.valor_proposta,
-        valor_pago: initialData.valor_pago,
-        valor_proposta_display: initialData.valor_proposta.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-        valor_pago_display: initialData.valor_pago.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        valorContratado: initialData.valorContratado,
+        valorRepassado: initialData.valorRepassado,
+        valorContratado_display: initialData.valorContratado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        valorRepassado_display: initialData.valorRepassado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
         margem: initialData.margem,
         percentual: initialData.percentual || 0,
-        empreendimento: initialData.empreendimento,
+        empreendimentoId: initialData.empreendimentoId,
+        empreendimentoNome: initialData.empreendimentoNome,
         status: initialData.status,
-        data_inicio: initialData.data_inicio,
-        periodo: initialData.periodo,
+        dataInicio: initialData.dataInicio,
+        tempoContrato: initialData.tempoContrato,
+        dataTermino: initialData.dataTermino,
         logradouro: initialData.logradouro || '',
         numero: initialData.numero || '',
         bairro: initialData.bairro || '',
@@ -153,27 +177,44 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, ini
   }, [initialData, isEditing]);
 
   useEffect(() => {
-    const margem = formData.valor_pago - formData.valor_proposta;
-    const percentual = formData.valor_proposta > 0 ? (margem / formData.valor_proposta) * 100 : 0;
-    setFormData(prev => ({ ...prev, margem, percentual }));
-  }, [formData.valor_proposta, formData.valor_pago]);
+    const margem = formData.valorContratado - formData.valorRepassado;
+    const percentual = formData.valorContratado > 0 ? (margem / formData.valorContratado) * 100 : 0;
+    const dataTermino = calculateEndDate(formData.dataInicio, formData.tempoContrato);
+    
+    setFormData(prev => {
+      // Só atualiza o status automaticamente se a data de término mudou
+      // Isso permite que o usuário clique nos botões de status para sobrescrever manualmente
+      const shouldUpdateStatus = prev.dataTermino !== dataTermino;
+      const newStatus = shouldUpdateStatus ? calculateStatus(dataTermino) : prev.status;
+      
+      return { ...prev, margem, percentual, dataTermino, status: newStatus };
+    });
+  }, [formData.valorContratado, formData.valorRepassado, formData.dataInicio, formData.tempoContrato]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    
+    if (!formData.nome || !formData.cnpj) {
+      showToast('Preencha o Nome e CNPJ antes de salvar!', 'error');
+      return;
+    }
+
     onSave({
       nome: formData.nome,
       razaoSocial: formData.razaoSocial,
       nomeFantasia: formData.nomeFantasia,
       cnpj: formData.cnpj,
       endereco: formData.endereco || `${formData.logradouro}, ${formData.numero} - ${formData.bairro}, ${formData.cidade} - ${formData.uf}`,
-      valor_proposta: formData.valor_proposta,
-      valor_pago: formData.valor_pago,
+      valorContratado: formData.valorContratado,
+      valorRepassado: formData.valorRepassado,
       margem: formData.margem,
       percentual: formData.percentual,
-      empreendimento: formData.empreendimento,
+      empreendimentoId: formData.empreendimentoId,
+      empreendimentoNome: formData.empreendimentoNome,
       status: formData.status,
-      data_inicio: formData.data_inicio,
-      periodo: formData.periodo,
+      dataInicio: formData.dataInicio,
+      tempoContrato: formData.tempoContrato,
+      dataTermino: formData.dataTermino,
       logradouro: formData.logradouro,
       numero: formData.numero,
       bairro: formData.bairro,
@@ -203,60 +244,77 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, ini
         </div>
       )}
 
-      <div className="mb-8">
-        <h2 className="text-2xl font-black text-white flex items-center gap-3 uppercase italic tracking-tighter">
-          {isEditing ? <Pencil className="text-sky-500" /> : <Save className="text-sky-500" />}
-          {isEditing ? 'Configuração de Ponto' : 'Novo Registro'}
-        </h2>
-        <div className="h-1 w-12 bg-sky-500 mt-2 rounded-full"></div>
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h2 className="text-2xl font-black text-white flex items-center gap-3 uppercase italic tracking-tighter">
+            {isEditing ? <Pencil className="text-sky-500" /> : <Save className="text-sky-500" />}
+            {isEditing ? 'Configuração de Ponto' : 'Novo Registro'}
+          </h2>
+          <div className="h-1 w-12 bg-sky-500 mt-2 rounded-full"></div>
+        </div>
+        <img src={logoUrl} className="w-12 h-12 rounded-xl object-cover border border-sky-500/20 shadow-lg" alt="Logo" />
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Status Box Selector - ATIVO / INATIVO */}
-        <div className="grid grid-cols-2 gap-4">
+        {/* Status Box Selector */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <button
             type="button"
             onClick={() => setFormData(prev => ({ ...prev, status: 'ativo' }))}
-            className={`p-6 rounded-[2rem] border-2 transition-all flex flex-col items-center gap-3 relative overflow-hidden group ${
-              formData.status === 'ativo' 
-              ? 'bg-emerald-500/10 border-emerald-500 shadow-[0_0_25px_rgba(16,185,129,0.2)]' 
-              : 'bg-slate-900/50 border-slate-800 opacity-40 grayscale'
+            className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
+              formData.status === 'ativo' ? 'bg-emerald-500/10 border-emerald-500' : 'bg-slate-900/50 border-slate-800 opacity-40'
             }`}
           >
-            <div className={`p-3 rounded-2xl ${formData.status === 'ativo' ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-500'}`}>
-              <CheckCircle2 size={24} />
-            </div>
-            <div className="text-center">
-              <span className={`block text-[10px] font-black uppercase tracking-[0.2em] ${formData.status === 'ativo' ? 'text-white' : 'text-slate-500'}`}>Status: Ativo</span>
-              <span className="text-[7px] font-bold text-slate-500 uppercase tracking-widest mt-1">Unidade Operando</span>
-            </div>
-            {formData.status === 'ativo' && <div className="absolute top-0 right-0 p-2"><div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div></div>}
+            <CheckCircle2 size={20} className={formData.status === 'ativo' ? 'text-emerald-500' : 'text-slate-500'} />
+            <span className="text-[8px] font-black uppercase tracking-widest">Ativo</span>
           </button>
-
+          <button
+            type="button"
+            onClick={() => setFormData(prev => ({ ...prev, status: 'vencendo' }))}
+            className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
+              formData.status === 'vencendo' ? 'bg-amber-500/10 border-amber-500' : 'bg-slate-900/50 border-slate-800 opacity-40'
+            }`}
+          >
+            <Timer size={20} className={formData.status === 'vencendo' ? 'text-amber-500' : 'text-slate-500'} />
+            <span className="text-[8px] font-black uppercase tracking-widest">Vencendo</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setFormData(prev => ({ ...prev, status: 'vencido' }))}
+            className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
+              formData.status === 'vencido' ? 'bg-rose-500/10 border-rose-500' : 'bg-slate-900/50 border-slate-800 opacity-40'
+            }`}
+          >
+            <AlertCircle size={20} className={formData.status === 'vencido' ? 'text-rose-500' : 'text-slate-500'} />
+            <span className="text-[8px] font-black uppercase tracking-widest">Vencido</span>
+          </button>
           <button
             type="button"
             onClick={() => setFormData(prev => ({ ...prev, status: 'inativo' }))}
-            className={`p-6 rounded-[2rem] border-2 transition-all flex flex-col items-center gap-3 relative overflow-hidden group ${
-              formData.status === 'inativo' 
-              ? 'bg-rose-500/10 border-rose-500 shadow-[0_0_25px_rgba(244,63,94,0.2)]' 
-              : 'bg-slate-900/50 border-slate-800 opacity-40 grayscale'
+            className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
+              formData.status === 'inativo' ? 'bg-slate-700/20 border-slate-500' : 'bg-slate-900/50 border-slate-800 opacity-40'
             }`}
           >
-            <div className={`p-3 rounded-2xl ${formData.status === 'inativo' ? 'bg-rose-500 text-white' : 'bg-slate-800 text-slate-500'}`}>
-              <XCircle size={24} />
-            </div>
-            <div className="text-center">
-              <span className={`block text-[10px] font-black uppercase tracking-[0.2em] ${formData.status === 'inativo' ? 'text-white' : 'text-slate-500'}`}>Status: Inativo</span>
-              <span className="text-[7px] font-bold text-slate-500 uppercase tracking-widest mt-1">Unidade Pausada</span>
-            </div>
+            <XCircle size={20} className={formData.status === 'inativo' ? 'text-slate-300' : 'text-slate-500'} />
+            <span className="text-[8px] font-black uppercase tracking-widest">Inativo</span>
           </button>
         </div>
 
         {/* Bloco 1: Identificação */}
         <div className="x-glass p-8 rounded-[2.5rem] border border-sky-500/10 shadow-2xl space-y-6">
-          <div className="flex items-center gap-2 mb-2">
-            <Globe size={16} className="text-sky-500" />
-            <span className="text-[10px] font-black text-sky-500 uppercase tracking-widest">Identificação Fiscal</span>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Globe size={16} className="text-sky-500" />
+              <span className="text-[10px] font-black text-sky-500 uppercase tracking-widest">Identificação Fiscal</span>
+            </div>
+            <button 
+              type="button"
+              onClick={() => handleSubmit()}
+              className="px-5 py-2.5 bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-400 transition-all active:scale-90 flex items-center gap-2 shadow-lg shadow-emerald-900/20 cursor-pointer pointer-events-auto"
+            >
+              <Save size={14} />
+              Salvar
+            </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -405,7 +463,7 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, ini
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Real Pago</label>
+              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Valor Contratado</label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-sky-500">R$</span>
                 <input 
@@ -413,13 +471,13 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, ini
                   type="text" 
                   placeholder="0,00"
                   className="w-full pl-10 pr-4 py-3.5 bg-slate-950/50 border border-sky-500/10 rounded-xl text-white text-xs outline-none focus:ring-2 focus:ring-sky-500/20"
-                  value={formData.valor_pago_display}
-                  onChange={(e) => handleCurrencyChange('valor_pago', e.target.value)}
+                  value={formData.valorContratado_display}
+                  onChange={(e) => handleCurrencyChange('valorContratado', e.target.value)}
                 />
               </div>
             </div>
             <div>
-              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Valor Proposta</label>
+              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Valor Repassado</label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400">R$</span>
                 <input 
@@ -427,30 +485,74 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, ini
                   type="text" 
                   placeholder="0,00"
                   className="w-full pl-10 pr-4 py-3.5 bg-slate-950/50 border border-sky-500/10 rounded-xl text-white text-xs outline-none focus:ring-2 focus:ring-sky-500/20"
-                  value={formData.valor_proposta_display}
-                  onChange={(e) => handleCurrencyChange('valor_proposta', e.target.value)}
+                  value={formData.valorRepassado_display}
+                  onChange={(e) => handleCurrencyChange('valorRepassado', e.target.value)}
                 />
               </div>
             </div>
             <div>
-              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Margem Prevista</label>
+              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Margem de Lucro</label>
               <div className={`w-full px-4 py-3.5 bg-slate-950/80 border border-sky-500/5 rounded-xl text-xs font-black flex items-center gap-2 ${formData.margem >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                 {formData.margem >= 0 ? <TrendingUp size={14} /> : <AlertCircle size={14} />}
                 R$ {formData.margem.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </div>
             </div>
             
+            <div className="md:col-span-1">
+              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Data Início</label>
+              <div className="relative">
+                <Calendar size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input 
+                  required
+                  type="date" 
+                  className="w-full pl-12 pr-4 py-3.5 bg-slate-950/50 border border-sky-500/10 rounded-xl text-white text-xs outline-none"
+                  value={formData.dataInicio}
+                  onChange={(e) => setFormData({...formData, dataInicio: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div className="md:col-span-1">
+              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Tempo Contrato (Meses)</label>
+              <div className="relative">
+                <Timer size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input 
+                  required
+                  type="number" 
+                  className="w-full pl-12 pr-4 py-3.5 bg-slate-950/50 border border-sky-500/10 rounded-xl text-white text-xs outline-none"
+                  value={formData.tempoContrato}
+                  onChange={(e) => setFormData({...formData, tempoContrato: parseInt(e.target.value) || 0})}
+                />
+              </div>
+            </div>
+
+            <div className="md:col-span-1">
+              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Data Término</label>
+              <div className="relative">
+                <Calendar size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input 
+                  readOnly
+                  type="date" 
+                  className="w-full pl-12 pr-4 py-3.5 bg-slate-950/20 border border-sky-500/5 rounded-xl text-white/50 text-xs outline-none"
+                  value={formData.dataTermino}
+                />
+              </div>
+            </div>
+
             <div className="md:col-span-3">
               <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Empreendimento Associado</label>
               <div className="relative">
                 <Briefcase size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
                 <select 
                   className="w-full pl-12 pr-4 py-3.5 bg-slate-950/50 border border-sky-500/10 rounded-xl text-white text-xs outline-none appearance-none cursor-pointer"
-                  value={formData.empreendimento}
-                  onChange={(e) => setFormData({...formData, empreendimento: e.target.value})}
+                  value={formData.empreendimentoId}
+                  onChange={(e) => {
+                    const emp = empreendimentos.find(emp => emp.id === e.target.value);
+                    setFormData({...formData, empreendimentoId: e.target.value, empreendimentoNome: emp?.nome || ''});
+                  }}
                 >
                   {empreendimentos.map(emp => (
-                    <option key={emp.id} value={emp.nome}>{emp.nome}</option>
+                    <option key={emp.id} value={emp.id}>{emp.nome}</option>
                   ))}
                 </select>
               </div>

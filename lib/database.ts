@@ -12,6 +12,17 @@ import {
   where, 
   addDoc 
 } from 'firebase/firestore';
+
+// Utility to remove undefined fields before saving to Firestore
+const cleanData = (obj: any) => {
+  const newObj = { ...obj };
+  Object.keys(newObj).forEach(key => {
+    if (newObj[key] === undefined) {
+      delete newObj[key];
+    }
+  });
+  return newObj;
+};
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
@@ -28,12 +39,14 @@ export const db = {
       return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Capitacao));
     },
     save: async (item: any) => {
-      if (item.id) {
-        const { id, ...data } = item;
+      const cleaned = cleanData(item);
+      if (cleaned.id) {
+        const { id, ...data } = cleaned;
         const docRef = doc(firestore, 'capitacoes', id.toString());
         await setDoc(docRef, data, { merge: true });
       } else {
-        await addDoc(collection(firestore, 'capitacoes'), item);
+        const { id, ...data } = cleaned;
+        await addDoc(collection(firestore, 'capitacoes'), data);
       }
     },
     delete: async (id: string) => {
@@ -57,12 +70,14 @@ export const db = {
       return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Empreendimento));
     },
     save: async (item: any) => {
-      if (item.id) {
-        const { id, ...data } = item;
+      const cleaned = cleanData(item);
+      if (cleaned.id) {
+        const { id, ...data } = cleaned;
         const docRef = doc(firestore, 'empreendimentos', id.toString());
         await setDoc(docRef, data, { merge: true });
       } else {
-        await addDoc(collection(firestore, 'empreendimentos'), item);
+        const { id, ...data } = cleaned;
+        await addDoc(collection(firestore, 'empreendimentos'), data);
       }
     },
     delete: async (id: string) => {
@@ -76,7 +91,7 @@ export const db = {
       return docSnap.exists() ? (docSnap.data() as UserProfile) : null;
     },
     setProfile: async (uid: string, profile: UserProfile) => {
-      await setDoc(doc(firestore, 'users', uid), profile, { merge: true });
+      await setDoc(doc(firestore, 'users', uid), cleanData(profile), { merge: true });
     },
     getAll: async (): Promise<UserProfile[]> => {
       const snapshot = await getDocs(collection(firestore, 'users'));

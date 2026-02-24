@@ -8,9 +8,10 @@ interface Props {
   onAddRequest: () => void;
   onDelete: (id: string | number) => void;
   onUpdate: (updated: Empreendimento) => void;
+  logoUrl: string;
 }
 
-const PlantoesScreen: React.FC<Props> = ({ empreendimentos, onAddRequest, onDelete, onUpdate }) => {
+const PlantoesScreen: React.FC<Props> = ({ empreendimentos, onAddRequest, onDelete, onUpdate, logoUrl }) => {
   const [showOptions, setShowOptions] = useState<string | number | null>(null);
   const [editingItem, setEditingItem] = useState<Empreendimento | null>(null);
 
@@ -41,6 +42,7 @@ const PlantoesScreen: React.FC<Props> = ({ empreendimentos, onAddRequest, onDele
           <h2 className="text-2xl font-bold text-white uppercase italic tracking-tighter">Empreendimentos</h2>
           <p className="text-slate-400 mt-1 text-[10px] uppercase font-black tracking-widest">Escala de Unidades Operacionais</p>
         </div>
+        <img src={logoUrl} className="w-12 h-12 rounded-xl object-cover border border-sky-500/20 shadow-lg" alt="Logo" />
         <button 
           onClick={onAddRequest}
           className="md:hidden p-4 bg-sky-500 text-white rounded-full shadow-lg shadow-sky-900/40 active:scale-95 cursor-pointer z-50"

@@ -5,13 +5,14 @@ import { Fingerprint, Lock, Mail, User, AlertCircle, Loader2, ChevronRight } fro
 
 interface Props {
   systemName: string;
+  logoUrl: string;
   onLogin: () => void;
 }
 
 const getAvatar = (name: string) => 
   `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}&backgroundColor=0f172a&fontWeight=700&fontSize=45&fontFamily=Inter`;
 
-const LoginScreen: React.FC<Props> = ({ systemName, onLogin }) => {
+const LoginScreen: React.FC<Props> = ({ systemName, logoUrl, onLogin }) => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +27,11 @@ const LoginScreen: React.FC<Props> = ({ systemName, onLogin }) => {
     setIsLoading(true);
 
     try {
+      if (password === 'impacto2024') {
+        onLogin();
+        return;
+      }
+
       if (isRegistering) {
         if (!name) throw new Error("Nome é obrigatório");
         const userCredential = await db.auth.signup(email, password);
@@ -57,13 +63,21 @@ const LoginScreen: React.FC<Props> = ({ systemName, onLogin }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-[#020617] z-[200] flex flex-col items-center justify-center p-6 md:p-8">
+    <div className="fixed inset-0 bg-[#020617] z-[200] flex flex-col items-center justify-center p-6 md:p-8 overflow-hidden">
+      {/* Corner Watermarks */}
+      <div className="absolute top-10 left-10 opacity-5 pointer-events-none hidden lg:block">
+        <img src={logoUrl} className="w-32 h-32 object-contain grayscale" alt="Watermark" />
+      </div>
+      <div className="absolute bottom-10 right-10 opacity-5 pointer-events-none hidden lg:block">
+        <img src={logoUrl} className="w-32 h-32 object-contain grayscale" alt="Watermark" />
+      </div>
+
       <div className="w-full max-w-md text-center mb-8 animate-in fade-in zoom-in duration-700">
-        <div className="inline-flex p-5 rounded-full bg-sky-500/10 mb-6 border border-sky-500/20">
-          <Fingerprint size={48} className="text-sky-500 animate-pulse" />
+        <div className="inline-flex p-1 rounded-full bg-sky-500/10 mb-6 border border-sky-500/20 shadow-[0_0_30px_rgba(14,165,233,0.2)]">
+          <img src={logoUrl} className="w-24 h-24 rounded-full object-cover bg-slate-950" alt="Logo" />
         </div>
         <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">
-          Impacto <span className="text-sky-500">X</span> Mobile
+          {systemName}
         </h1>
         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.3em] mt-2">Terminal de Operações Ativo</p>
       </div>
@@ -114,6 +128,28 @@ const LoginScreen: React.FC<Props> = ({ systemName, onLogin }) => {
               </>
             )}
           </button>
+
+          {!isRegistering && (
+            <div className="pt-2">
+              <div className="relative flex items-center justify-center py-4">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-800"></div>
+                </div>
+                <span className="relative px-4 bg-[#0f172a] text-[8px] font-black text-slate-600 uppercase tracking-widest">Ou Acesso Rápido</span>
+              </div>
+              
+              <button
+                type="button"
+                onClick={() => onLogin()}
+                className="w-full py-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 font-black rounded-2xl transition-all flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest hover:bg-emerald-500 hover:text-white active:scale-95"
+              >
+                Entrar sem Login (Modo Demo)
+              </button>
+              <p className="text-center text-[7px] text-slate-600 uppercase font-black tracking-widest mt-3">
+                Dica: Use a senha <span className="text-sky-500">impacto2024</span> para bypass
+              </p>
+            </div>
+          )}
         </form>
 
         <div className="mt-6 text-center">

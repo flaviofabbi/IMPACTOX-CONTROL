@@ -1,6 +1,6 @@
 
-import React, { useRef } from 'react';
-import { LayoutDashboard, Users, PlusCircle, Settings, Briefcase, Database, LogOut, UserCircle, ShieldCheck, Edit } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { LayoutDashboard, Users, PlusCircle, Settings, Briefcase, Database, LogOut, UserCircle, ShieldCheck, Edit, Menu, X } from 'lucide-react';
 import { AppTab, UserProfile } from '../types';
 
 interface LayoutProps {
@@ -16,6 +16,7 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, logoUrl, onLogoChange, currentUser, onSwitchUser, systemName }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const tabs = [
     { name: 'Dashboard' as AppTab, icon: LayoutDashboard },
@@ -72,6 +73,61 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, logoU
         accept="image/*" 
         onChange={handleFileChange}
       />
+
+      {/* Mobile Menu Overlay */}
+      {isMenuOpen && (
+        <div className="fixed inset-0 bg-[#020617]/95 z-[100] md:hidden animate-in fade-in duration-300 backdrop-blur-md">
+          <div className="flex flex-col h-full p-8">
+            <div className="flex items-center justify-between mb-12">
+              <div className="flex items-center gap-3">
+                <img src={logoUrl} className="h-10 w-10 rounded-xl object-cover border border-sky-500/30" />
+                <h1 className="text-lg font-black text-white uppercase tracking-tighter">
+                  {renderSystemName(systemName)}
+                </h1>
+              </div>
+              <button onClick={() => setIsMenuOpen(false)} className="p-2 text-slate-400 hover:text-white transition-all">
+                <X size={32} />
+              </button>
+            </div>
+
+            <nav className="flex-1 space-y-4">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.name}
+                  onClick={() => {
+                    onTabChange(tab.name);
+                    setIsMenuOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-4 p-5 rounded-2xl font-black uppercase tracking-widest text-xs transition-all ${
+                    activeTab === tab.name 
+                      ? 'bg-sky-600 text-white shadow-lg shadow-sky-900/40' 
+                      : 'text-slate-400 hover:bg-slate-800/50'
+                  }`}
+                >
+                  <tab.icon size={24} />
+                  {tab.name}
+                </button>
+              ))}
+            </nav>
+
+            <div className="mt-auto pt-8 border-t border-slate-800">
+              <div className="flex items-center gap-4 mb-8">
+                <img src={currentUser.avatar} className="w-14 h-14 rounded-2xl bg-slate-800 p-1 border border-sky-500/20" />
+                <div>
+                  <p className="text-sm font-black text-white uppercase">{currentUser.nome}</p>
+                  <p className="text-[10px] font-black text-sky-500 uppercase tracking-widest">{currentUser.cargo}</p>
+                </div>
+              </div>
+              <button 
+                onClick={onSwitchUser}
+                className="w-full py-4 bg-slate-800 hover:bg-rose-600/20 hover:text-rose-400 text-slate-400 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all flex items-center justify-center gap-3"
+              >
+                <LogOut size={18} /> Sair do Terminal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <aside className="hidden md:flex flex-col w-64 bg-slate-900/40 backdrop-blur-xl text-white z-50 border-r border-sky-500/10 shrink-0">
         <div className="p-8 flex flex-col items-center gap-4 pt-10 mb-2">
@@ -147,28 +203,28 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, logoU
       </aside>
 
       <main className="flex-1 h-full overflow-hidden flex flex-col relative bg-[#020617]">
-        <header className="md:hidden flex items-center justify-between p-4 bg-slate-900/80 backdrop-blur-md border-b border-sky-500/10">
+        {/* Watermark Logo in the corner */}
+        <div className="absolute top-6 right-6 pointer-events-none opacity-10 hidden md:block select-none">
+          <img src={logoUrl} className="w-24 h-24 object-contain grayscale brightness-200" alt="Watermark" />
+        </div>
+        <div className="absolute bottom-6 right-6 pointer-events-none opacity-5 hidden lg:block select-none">
+          <img src={logoUrl} className="w-40 h-40 object-contain grayscale brightness-200" alt="Watermark" />
+        </div>
+        
+        <header className="md:hidden flex items-center justify-between p-4 bg-slate-900/80 backdrop-blur-md border-b border-sky-500/10 z-40">
            <div className="flex items-center gap-3">
              <img src={logoUrl} className="h-8 w-8 rounded-lg object-cover border border-sky-500/30" />
              <h1 className="text-xs font-black text-white uppercase tracking-tighter truncate max-w-[120px]">
                {renderSystemName(systemName)}
              </h1>
            </div>
-           <div className="flex items-center gap-3">
-             <div className="text-right hidden sm:block">
-               <p className="text-[10px] font-black text-white uppercase">{currentUser.nome}</p>
-               <p className="text-[8px] font-bold text-sky-500 uppercase">{currentUser.cargo}</p>
-             </div>
-             <div className="relative">
-               <img src={currentUser.avatar} className="w-9 h-9 rounded-xl bg-slate-800 p-0.5 border border-sky-500/20 shadow-lg shadow-sky-900/10" />
-               <button 
-                 onClick={() => onTabChange('Config')}
-                 className="absolute -top-1 -right-1 bg-sky-600 text-white p-1 rounded-lg border border-slate-900 shadow-lg active:scale-90 transition-all"
-               >
-                 <Edit size={10} />
-               </button>
-             </div>
-           </div>
+           
+           <button 
+             onClick={() => setIsMenuOpen(true)}
+             className="p-2.5 bg-sky-600/10 text-sky-500 rounded-xl border border-sky-500/20 hover:bg-sky-600 hover:text-white transition-all active:scale-95"
+           >
+             <Menu size={20} />
+           </button>
         </header>
         
         <div className="flex-1 p-4 md:p-10 max-w-6xl mx-auto w-full pb-24 md:pb-6 overflow-y-auto custom-scrollbar">
