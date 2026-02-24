@@ -5,23 +5,29 @@ import { Capitacao, Empreendimento } from '../types';
 
 interface Props {
   empreendimentos: Empreendimento[];
+  capitacoes: Capitacao[];
   initialData?: Capitacao;
   onSave: (data: Omit<Capitacao, 'id' | 'data' | 'mes'>) => void;
   onCancel: () => void;
 }
 
-const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, initialData, onSave, onCancel }) => {
+const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, initialData, onSave, onCancel }) => {
   const isEditing = !!initialData;
   const [isFetchingCnpj, setIsFetchingCnpj] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const [formData, setFormData] = useState({
     nome: '',
+    razaoSocial: '',
+    nomeFantasia: '',
     cnpj: '',
+    endereco: '',
     valor_proposta_display: '',
     valor_pago_display: '',
     valor_proposta: 0,
     valor_pago: 0,
     margem: 0,
+    percentual: 0,
     empreendimento: empreendimentos.length > 0 ? empreendimentos[0].nome : '',
     status: 'ativo' as 'ativo' | 'inativo' | 'vencido' | 'pendente',
     data_inicio: new Date().toISOString().split('T')[0],
@@ -36,9 +42,40 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, initialData, on
 
   const [cnpjError, setCnpjError] = useState<string | null>(null);
 
-  const fetchCnpjData = async (cnpj: string) => {
-    const cleanCnpj = cnpj.replace(/\D/g, '');
-    if (cleanCnpj.length !== 14) return;
+  const maskCnpj = (value: string) => {
+    return value
+      .replace(/\D/g, '')
+      .replace(/^(\d{2})(\d)/, '$1.$2')
+      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/\.(\d{3})(\d)/, '.$1/$2')
+      .replace(/(\d{4})(\d)/, '$1-$2')
+      .substring(0, 18);
+  };
+
+  const maskCep = (value: string) => {
+    return value
+      .replace(/\D/g, '')
+      .replace(/^(\d{5})(\d)/, '$1-$2')
+      .substring(0, 9);
+  };
+
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const fetchCnpjData = async () => {
+    const cleanCnpj = formData.cnpj.replace(/\D/g, '');
+    if (cleanCnpj.length !== 14) {
+      showToast('Digite o CNPJ completo para buscar', 'error');
+      return;
+    }
+
+    // Verificar duplicidade
+    const isDuplicate = capitacoes.some(c => c.cnpj.replace(/\D/g, '') === cleanCnpj && c.id !== initialData?.id);
+    if (isDuplicate) {
+      showToast('Este CNPJ já está cadastrado no sistema!', 'error');
+    }
 
     setIsFetchingCnpj(true);
     setCnpjError(null);
@@ -49,9 +86,14 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, initialData, on
       
       const data = await response.json();
       
+      const fullAddress = `${data.logradouro || ''}, ${data.numero || 'S/N'} - ${data.bairro || ''}, ${data.municipio || ''} - ${data.uf || ''}`;
+      
       setFormData(prev => ({
         ...prev,
-        nome: data.razao_social || data.nome_fantasia || prev.nome,
+        nome: data.nome_fantasia || data.razao_social || prev.nome,
+        razaoSocial: data.razao_social || '',
+        nomeFantasia: data.nome_fantasia || '',
+        endereco: fullAddress,
         logradouro: data.logradouro || '',
         numero: data.numero || '',
         bairro: data.bairro || '',
@@ -59,9 +101,12 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, initialData, on
         uf: data.uf || '',
         cep: data.cep || '',
       }));
+      
+      showToast('Empresa carregada com sucesso!', 'success');
     } catch (err) {
       console.error(err);
       setCnpjError('CNPJ não encontrado automaticamente.');
+      showToast('Erro ao buscar CNPJ. Verifique os dados.', 'error');
     } finally {
       setIsFetchingCnpj(false);
     }
@@ -83,12 +128,16 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, initialData, on
     if (isEditing && initialData) {
       setFormData({
         nome: initialData.nome,
+        razaoSocial: initialData.razaoSocial || '',
+        nomeFantasia: initialData.nomeFantasia || '',
         cnpj: initialData.cnpj,
+        endereco: initialData.endereco || '',
         valor_proposta: initialData.valor_proposta,
         valor_pago: initialData.valor_pago,
         valor_proposta_display: initialData.valor_proposta.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
         valor_pago_display: initialData.valor_pago.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
         margem: initialData.margem,
+        percentual: initialData.percentual || 0,
         empreendimento: initialData.empreendimento,
         status: initialData.status,
         data_inicio: initialData.data_inicio,
@@ -104,17 +153,23 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, initialData, on
   }, [initialData, isEditing]);
 
   useEffect(() => {
-    setFormData(prev => ({ ...prev, margem: prev.valor_pago - prev.valor_proposta }));
+    const margem = formData.valor_pago - formData.valor_proposta;
+    const percentual = formData.valor_proposta > 0 ? (margem / formData.valor_proposta) * 100 : 0;
+    setFormData(prev => ({ ...prev, margem, percentual }));
   }, [formData.valor_proposta, formData.valor_pago]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({
       nome: formData.nome,
+      razaoSocial: formData.razaoSocial,
+      nomeFantasia: formData.nomeFantasia,
       cnpj: formData.cnpj,
+      endereco: formData.endereco || `${formData.logradouro}, ${formData.numero} - ${formData.bairro}, ${formData.cidade} - ${formData.uf}`,
       valor_proposta: formData.valor_proposta,
       valor_pago: formData.valor_pago,
       margem: formData.margem,
+      percentual: formData.percentual,
       empreendimento: formData.empreendimento,
       status: formData.status,
       data_inicio: formData.data_inicio,
@@ -138,6 +193,16 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, initialData, on
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto pb-40 px-2 relative z-10">
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed top-24 right-4 z-[300] p-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-right-4 ${
+          toast.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'
+        }`}>
+          {toast.type === 'success' ? <CheckCircle2 size={20} /> : <XCircle size={20} />}
+          <span className="text-[10px] font-black uppercase tracking-widest">{toast.message}</span>
+        </div>
+      )}
+
       <div className="mb-8">
         <h2 className="text-2xl font-black text-white flex items-center gap-3 uppercase italic tracking-tighter">
           {isEditing ? <Pencil className="text-sky-500" /> : <Save className="text-sky-500" />}
@@ -197,26 +262,39 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, initialData, on
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-1">
               <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">CNPJ do Ponto</label>
-              <div className="relative">
-                <Hash size={16} className={`absolute left-4 top-1/2 -translate-y-1/2 ${isFetchingCnpj ? 'text-sky-500 animate-spin' : 'text-slate-500'}`} />
-                <input 
-                  required
-                  type="text" 
-                  placeholder="00.000.000/0000-00"
-                  className="w-full pl-12 pr-10 py-4 bg-slate-950/50 border border-sky-500/10 rounded-2xl text-white text-xs outline-none focus:ring-2 transition-all"
-                  value={formData.cnpj}
-                  onChange={(e) => {
-                     const val = e.target.value;
-                     setFormData({...formData, cnpj: val});
-                     if(val.replace(/\D/g, '').length === 14) fetchCnpjData(val);
-                  }}
-                />
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Hash size={16} className={`absolute left-4 top-1/2 -translate-y-1/2 ${isFetchingCnpj ? 'text-sky-500 animate-spin' : 'text-slate-500'}`} />
+                  <input 
+                    required
+                    type="text" 
+                    placeholder="00.000.000/0000-00"
+                    className="w-full pl-12 pr-4 py-4 bg-slate-950/50 border border-sky-500/10 rounded-2xl text-white text-xs outline-none focus:ring-2 transition-all"
+                    value={formData.cnpj}
+                    onChange={(e) => {
+                       const val = maskCnpj(e.target.value);
+                       setFormData({...formData, cnpj: val});
+                    }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  disabled={isFetchingCnpj || formData.cnpj.replace(/\D/g, '').length !== 14}
+                  onClick={fetchCnpjData}
+                  className={`px-4 rounded-2xl flex items-center justify-center transition-all ${
+                    isFetchingCnpj || formData.cnpj.replace(/\D/g, '').length !== 14
+                    ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
+                    : 'bg-sky-600 text-white hover:bg-sky-500 shadow-lg shadow-sky-900/20'
+                  }`}
+                >
+                  {isFetchingCnpj ? <Loader2 size={18} className="animate-spin" /> : <Globe size={18} />}
+                </button>
               </div>
               {cnpjError && <p className="text-[8px] text-red-400 mt-2 ml-2 font-bold uppercase tracking-tight">{cnpjError}</p>}
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Nome / Razão Social</label>
+              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Nome do Ponto (Nome Fantasia)</label>
               <div className="relative">
                 <MapPin size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input 
@@ -225,6 +303,93 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, initialData, on
                   className="w-full pl-12 pr-4 py-4 bg-slate-950/50 border border-sky-500/10 rounded-2xl text-white text-xs outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
                   value={formData.nome}
                   onChange={(e) => setFormData({...formData, nome: e.target.value})}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Razão Social</label>
+              <input 
+                type="text" 
+                className="w-full px-4 py-4 bg-slate-950/50 border border-sky-500/10 rounded-2xl text-white text-xs outline-none"
+                value={formData.razaoSocial}
+                onChange={(e) => setFormData({...formData, razaoSocial: e.target.value})}
+              />
+            </div>
+            <div>
+              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Endereço Completo</label>
+              <input 
+                type="text" 
+                className="w-full px-4 py-4 bg-slate-950/50 border border-sky-500/10 rounded-2xl text-white text-xs outline-none"
+                value={formData.endereco}
+                onChange={(e) => setFormData({...formData, endereco: e.target.value})}
+              />
+            </div>
+          </div>
+
+          {/* Endereço Detalhado - Compacto */}
+          <div className="pt-4 border-t border-sky-500/5 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[8px] font-black text-slate-600 uppercase tracking-widest mb-1 ml-2">Logradouro & Número</label>
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    placeholder="Rua..."
+                    className="flex-[3] px-4 py-3 bg-slate-950/30 border border-sky-500/5 rounded-xl text-white text-[10px] outline-none"
+                    value={formData.logradouro}
+                    onChange={(e) => setFormData({...formData, logradouro: e.target.value})}
+                  />
+                  <input 
+                    type="text" 
+                    placeholder="Nº"
+                    className="flex-1 px-4 py-3 bg-slate-950/30 border border-sky-500/5 rounded-xl text-white text-[10px] outline-none"
+                    value={formData.numero}
+                    onChange={(e) => setFormData({...formData, numero: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[8px] font-black text-slate-600 uppercase tracking-widest mb-1 ml-2">Bairro</label>
+                <input 
+                  type="text" 
+                  className="w-full px-4 py-3 bg-slate-950/30 border border-sky-500/5 rounded-xl text-white text-[10px] outline-none"
+                  value={formData.bairro}
+                  onChange={(e) => setFormData({...formData, bairro: e.target.value})}
+                />
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-2">
+                  <label className="block text-[8px] font-black text-slate-600 uppercase tracking-widest mb-1 ml-2">Cidade</label>
+                  <input 
+                    type="text" 
+                    className="w-full px-4 py-3 bg-slate-950/30 border border-sky-500/5 rounded-xl text-white text-[10px] outline-none"
+                    value={formData.cidade}
+                    onChange={(e) => setFormData({...formData, cidade: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[8px] font-black text-slate-600 uppercase tracking-widest mb-1 ml-2">UF</label>
+                  <input 
+                    type="text" 
+                    maxLength={2}
+                    className="w-full px-4 py-3 bg-slate-950/30 border border-sky-500/5 rounded-xl text-white text-[10px] outline-none uppercase"
+                    value={formData.uf}
+                    onChange={(e) => setFormData({...formData, uf: e.target.value.toUpperCase()})}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[8px] font-black text-slate-600 uppercase tracking-widest mb-1 ml-2">CEP</label>
+                <input 
+                  type="text" 
+                  className="w-full px-4 py-3 bg-slate-950/30 border border-sky-500/5 rounded-xl text-white text-[10px] outline-none"
+                  value={formData.cep}
+                  onChange={(e) => setFormData({...formData, cep: maskCep(e.target.value)})}
                 />
               </div>
             </div>

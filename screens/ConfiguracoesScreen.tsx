@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Bell, Shield, Smartphone, Globe, LogOut, ChevronRight, User, Download, Database, RotateCcw, UploadCloud, FileSpreadsheet, Terminal, Activity, Clock, ShieldCheck, HardDrive, RefreshCcw, CloudCheck, UserPlus, Edit, Trash2, X, Save, Palette, AlertTriangle, Type, HelpCircle, Info, Share2, Send, DownloadCloud, Copy, Check, Mail } from 'lucide-react';
+import { Bell, Shield, Smartphone, Globe, LogOut, ChevronRight, User, Download, Database, RotateCcw, UploadCloud, FileSpreadsheet, Terminal, Activity, Clock, ShieldCheck, HardDrive, RefreshCcw, UserPlus, Edit, Trash2, X, Save, Palette, AlertTriangle, Type, HelpCircle, Info, Share2, Send, DownloadCloud, Copy, Check, Mail } from 'lucide-react';
 import { Capitacao, Empreendimento, AccessLog, UserProfile } from '../types';
 
 interface Props {
@@ -170,12 +170,15 @@ const ConfiguracoesScreen: React.FC<Props> = ({
             </div>
             <div>
               <p className="text-[10px] font-black text-white uppercase tracking-widest">ID: {dbId}</p>
-              <p className="text-[7px] text-emerald-500 font-bold uppercase tracking-widest">Database Offline OK</p>
+              <div className="text-[7px] text-sky-400 font-bold uppercase tracking-widest flex items-center gap-1">
+                <div className="w-1 h-1 bg-sky-400 rounded-full animate-pulse"></div>
+                Impacto X Cloud Ativo
+              </div>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-xs font-black text-sky-500">{calculateStorageSize()} KB</p>
-            <p className="text-[7px] text-slate-600 font-black uppercase">Cache do Navegador</p>
+            <p className="text-xs font-black text-sky-500">Sincronizado</p>
+            <p className="text-[7px] text-slate-600 font-black uppercase tracking-widest">Tempo Real</p>
           </div>
         </div>
 
@@ -183,7 +186,13 @@ const ConfiguracoesScreen: React.FC<Props> = ({
         <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-6 shadow-xl">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xs font-black text-white uppercase tracking-widest">Operadores Ativos</h3>
-            <button onClick={() => setEditingUser({ cor: GRADIENTS[0] })} className="px-4 py-2 bg-sky-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest">Add Novo</button>
+            <button 
+              onClick={() => setEditingUser({ cor: GRADIENTS[0] })} 
+              className="px-4 py-2 bg-sky-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 active:scale-95 transition-all"
+            >
+              <UserPlus size={14} />
+              Add Novo
+            </button>
           </div>
 
           <div className="grid grid-cols-1 gap-3">
@@ -194,9 +203,21 @@ const ConfiguracoesScreen: React.FC<Props> = ({
                   <p className="text-[11px] font-black text-white truncate">{u.nome}</p>
                   <p className="text-[8px] font-bold text-slate-500 uppercase truncate">{u.cargo}</p>
                 </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => setEditingUser(u)} className="p-2 text-slate-400 hover:text-sky-400 bg-slate-800 rounded-lg"><Edit size={12} /></button>
-                  <button onClick={() => { if(window.confirm('Excluir este operador?')) onDeleteUser(u.id); }} className="p-2 text-slate-400 hover:text-red-400 bg-slate-800 rounded-lg"><Trash2 size={12} /></button>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setEditingUser(u)} 
+                    className="p-2.5 text-sky-400 hover:bg-sky-500/10 bg-slate-800/50 rounded-xl transition-all active:scale-90"
+                    title="Editar Operador"
+                  >
+                    <Edit size={14} />
+                  </button>
+                  <button 
+                    onClick={() => { if(window.confirm('Excluir este operador?')) onDeleteUser(u.id); }} 
+                    className="p-2.5 text-rose-400 hover:bg-rose-500/10 bg-slate-800/50 rounded-xl transition-all active:scale-90"
+                    title="Excluir Operador"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               </div>
             ))}

@@ -27,15 +27,30 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const unsubscribe = db.auth.onAuthStateChanged(async (user) => {
+      setIsInitializing(true);
       try {
         if (user) {
-          const profile = await db.users.getProfile(user.uid);
-          if (profile) {
-            setCurrentUser(profile);
-            await refreshData(profile.id);
-          } else {
-            setCurrentUser(null);
+          // Tenta buscar o perfil
+          let profile = await db.users.getProfile(user.uid);
+          
+          // Se não encontrar, pode ser um novo cadastro. Vamos tentar criar um perfil básico
+          // ou aguardar um pouco se o cadastro estiver em curso no LoginScreen.
+          if (!profile) {
+            console.log("Perfil não encontrado, criando perfil temporário para:", user.email);
+            profile = {
+              id: user.uid,
+              nome: user.displayName || user.email?.split('@')[0] || 'Operador',
+              email: user.email || '',
+              cargo: 'Operador',
+              avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${user.uid}`,
+              cor: 'from-sky-500 to-blue-700'
+            };
+            // Não salvamos no banco aqui para não conflitar com o LoginScreen, 
+            // apenas permitimos o acesso local.
           }
+          
+          setCurrentUser(profile);
+          await refreshData(profile.id);
         } else {
           setCurrentUser(null);
         }
@@ -167,6 +182,7 @@ const App: React.FC = () => {
         newType === 'capitacao' ? (
           <NovaCapitacaoScreen 
             empreendimentos={empreendimentos}
+            capitacoes={capitacoes}
             initialData={editingCapitacao || undefined}
             onSave={async (nova) => {
               await db.capitacoes.save({
@@ -207,8 +223,7 @@ const App: React.FC = () => {
             await refreshData(currentUser.id); 
           }} 
           onDeleteUser={async (id) => { 
-            const updatedUsers = users.filter(u => u.id !== id);
-            localStorage.setItem('ix_users', JSON.stringify(updatedUsers));
+            await db.users.delete(id);
             await refreshData(currentUser.id);
           }}
           capitacoes={capitacoes} empreendimentos={empreendimentos} accessLogs={[]}

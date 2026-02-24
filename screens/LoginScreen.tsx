@@ -37,11 +37,14 @@ const LoginScreen: React.FC<Props> = ({ systemName, onLogin }) => {
           avatar: getAvatar(name),
           cor: 'from-sky-500 to-blue-700'
         };
+        // Garantir que o perfil foi salvo antes de prosseguir
         await db.users.setProfile(userCredential.user.uid, profile);
+        console.log("Perfil criado com sucesso para:", email);
       } else {
         await db.auth.login(email, password);
+        console.log("Login realizado com sucesso para:", email);
       }
-      onLogin();
+      // O App.tsx vai reagir ao onAuthStateChanged
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/wrong-password') setError('Senha incorreta.');
@@ -62,7 +65,7 @@ const LoginScreen: React.FC<Props> = ({ systemName, onLogin }) => {
         <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">
           Impacto <span className="text-sky-500">X</span> Mobile
         </h1>
-        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.3em] mt-2">Cloud Backend Ativo</p>
+        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.3em] mt-2">Terminal de Operações Ativo</p>
       </div>
 
       <div className="w-full max-w-sm x-glass p-8 rounded-[2.5rem] shadow-2xl animate-in slide-in-from-bottom-8 duration-700">
@@ -106,7 +109,7 @@ const LoginScreen: React.FC<Props> = ({ systemName, onLogin }) => {
           >
             {isLoading ? <Loader2 size={18} className="animate-spin" /> : (
               <>
-                {isRegistering ? 'Criar Conta' : 'Acessar Cloud'}
+                {isRegistering ? 'Criar Conta' : 'Acessar Terminal'}
                 <ChevronRight size={18} />
               </>
             )}
@@ -119,7 +122,7 @@ const LoginScreen: React.FC<Props> = ({ systemName, onLogin }) => {
             onClick={() => setIsRegistering(!isRegistering)}
             className="text-[9px] font-black text-slate-500 uppercase tracking-widest hover:text-sky-400 transition-colors"
           >
-            {isRegistering ? 'Já possui conta? Entrar' : 'Novo por aqui? Criar acesso Cloud'}
+            {isRegistering ? 'Já possui conta? Entrar' : 'Novo por aqui? Criar acesso'}
           </button>
         </div>
       </div>

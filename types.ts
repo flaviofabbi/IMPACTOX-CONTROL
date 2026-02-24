@@ -20,10 +20,14 @@ export interface AccessLog {
 export interface Capitacao {
   id: string | number;
   nome: string;
+  razaoSocial?: string;
+  nomeFantasia?: string;
   cnpj: string;
-  valor_proposta: number;
-  valor_pago: number;
+  endereco?: string;
+  valor_proposta: number; // valorFechado
+  valor_pago: number;     // valorReal
   margem: number;
+  percentual?: number;
   status: 'ativo' | 'inativo' | 'vencido' | 'pendente';
   empreendimento: string;
   mes: string;
@@ -31,7 +35,8 @@ export interface Capitacao {
   data_inicio: string;
   periodo: string;
   userId?: string;
-  // Novos campos de endereço
+  createdAt?: any;
+  // Campos de endereço detalhados (mantidos para compatibilidade)
   logradouro?: string;
   numero?: string;
   bairro?: string;

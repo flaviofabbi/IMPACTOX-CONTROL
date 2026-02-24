@@ -1,6 +1,6 @@
 
 import React, { useRef } from 'react';
-import { LayoutDashboard, Users, PlusCircle, Settings, Briefcase, Database, LogOut, UserCircle, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Users, PlusCircle, Settings, Briefcase, Database, LogOut, UserCircle, ShieldCheck, Edit } from 'lucide-react';
 import { AppTab, UserProfile } from '../types';
 
 interface LayoutProps {
@@ -98,9 +98,22 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, logoU
               <p className="text-[11px] font-black text-white truncate">{currentUser.nome}</p>
               <p className="text-[8px] font-black text-sky-500/60 uppercase tracking-widest truncate">{currentUser.cargo}</p>
             </div>
-            <button onClick={onSwitchUser} className="p-2 text-slate-500 hover:text-red-400 transition-colors">
-              <LogOut size={16} />
-            </button>
+            <div className="flex flex-col gap-1">
+              <button 
+                onClick={() => onTabChange('Config')} 
+                className="p-1.5 text-slate-500 hover:text-sky-400 transition-colors"
+                title="Editar Perfil"
+              >
+                <Edit size={14} />
+              </button>
+              <button 
+                onClick={onSwitchUser} 
+                className="p-1.5 text-slate-500 hover:text-red-400 transition-colors"
+                title="Sair"
+              >
+                <LogOut size={14} />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -146,7 +159,15 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, logoU
                <p className="text-[10px] font-black text-white uppercase">{currentUser.nome}</p>
                <p className="text-[8px] font-bold text-sky-500 uppercase">{currentUser.cargo}</p>
              </div>
-             <img src={currentUser.avatar} className="w-9 h-9 rounded-xl bg-slate-800 p-0.5 border border-sky-500/20 shadow-lg shadow-sky-900/10" />
+             <div className="relative">
+               <img src={currentUser.avatar} className="w-9 h-9 rounded-xl bg-slate-800 p-0.5 border border-sky-500/20 shadow-lg shadow-sky-900/10" />
+               <button 
+                 onClick={() => onTabChange('Config')}
+                 className="absolute -top-1 -right-1 bg-sky-600 text-white p-1 rounded-lg border border-slate-900 shadow-lg active:scale-90 transition-all"
+               >
+                 <Edit size={10} />
+               </button>
+             </div>
            </div>
         </header>
         
