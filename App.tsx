@@ -16,7 +16,7 @@ const App: React.FC = () => {
   const [editingCapitacao, setEditingCapitacao] = useState<Capitacao | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   
-  const [logoUrl, setLogoUrl] = useState("https://picsum.photos/seed/impacto-x/400/400");
+  const [logoUrl, setLogoUrl] = useState("https://picsum.photos/seed/impacto-x-neon/800/800");
   const [systemName, setSystemName] = useState('Impacto X');
 
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);

@@ -49,7 +49,9 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, logoU
         return (
           <>
             {name.substring(0, xPos)}
-            <span className="text-sky-500">{name.substring(xPos, xPos + 1)}</span>
+            <span className="bg-gradient-to-br from-sky-400 via-purple-500 to-pink-500 bg-clip-text text-transparent drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]">
+              {name.substring(xPos, xPos + 1)}
+            </span>
             {name.substring(xPos + 1)}
           </>
         );
@@ -59,13 +61,13 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, logoU
     const lastPart = parts.pop();
     return (
       <>
-        {parts.join(' ')} <span className="text-sky-500">{lastPart}</span>
+        {parts.join(' ')} <span className="bg-gradient-to-br from-sky-400 via-purple-500 to-pink-500 bg-clip-text text-transparent drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]">{lastPart}</span>
       </>
     );
   };
 
   return (
-    <div className="h-screen w-screen bg-[#020617] flex flex-col md:flex-row overflow-hidden text-slate-100">
+    <div className="h-screen w-screen bg-[#000000] flex flex-col md:flex-row overflow-hidden text-slate-100">
       <input 
         type="file" 
         ref={fileInputRef} 
@@ -195,16 +197,30 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, logoU
         </nav>
         
         <div className="p-6 bg-slate-950/40 border-t border-sky-500/10">
-          <div className="flex items-center gap-2 justify-center text-[8px] font-black text-sky-400 uppercase tracking-widest">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-            <span>Auto-Save: Persistência AES-256 OK</span>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2 justify-center text-[8px] font-black text-sky-400 uppercase tracking-widest">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+              <span>Firebase Cloud: Ativo</span>
+            </div>
+            <div className="flex items-center gap-2 justify-center text-[7px] font-black text-slate-500 uppercase tracking-widest">
+              <span>Sincronização em Tempo Real</span>
+            </div>
           </div>
         </div>
       </aside>
 
-      <main className="flex-1 h-full overflow-hidden flex flex-col relative bg-[#020617]">
-        {/* Watermark Logo in the corner */}
-        <div className="absolute top-6 right-6 pointer-events-none opacity-10 hidden md:block select-none">
+      <main className="flex-1 h-full overflow-hidden flex flex-col relative bg-[#000000]">
+        {/* Central Elegant Watermark */}
+        <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+          <img 
+            src={logoUrl} 
+            className="w-[85%] md:w-[65%] opacity-[0.12] brightness-125 blur-[0.3px] transform -rotate-12 select-none mix-blend-screen" 
+            alt="Central Watermark" 
+          />
+        </div>
+
+        {/* Corner Watermarks */}
+        <div className="absolute top-6 right-6 pointer-events-none opacity-10 hidden md:block select-none z-10">
           <img src={logoUrl} className="w-24 h-24 object-contain grayscale brightness-200" alt="Watermark" />
         </div>
         <div className="absolute bottom-6 right-6 pointer-events-none opacity-5 hidden lg:block select-none">
@@ -227,7 +243,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, logoU
            </button>
         </header>
         
-        <div className="flex-1 p-4 md:p-10 max-w-6xl mx-auto w-full pb-24 md:pb-6 overflow-y-auto custom-scrollbar">
+        <div className="flex-1 p-4 md:p-10 max-w-6xl mx-auto w-full pb-24 md:pb-6 overflow-y-auto custom-scrollbar relative z-10">
           {children}
         </div>
       </main>

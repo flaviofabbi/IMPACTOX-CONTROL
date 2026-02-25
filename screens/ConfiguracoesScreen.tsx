@@ -143,6 +143,54 @@ const ConfiguracoesScreen: React.FC<Props> = ({
       </div>
 
       <div className="space-y-4">
+        {/* Status do Banco de Dados Cloud (Firebase) */}
+        <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-6 shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4">
+            <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+              <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">Ativo</span>
+            </div>
+          </div>
+
+          <h3 className="text-xs font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
+            <Database size={14} className="text-sky-500" /> Firebase Cloud Database
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 bg-slate-950/50 border border-slate-800 rounded-2xl">
+              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Capitações Sincronizadas</p>
+              <p className="text-xl font-black text-white">{capitacoes.length}</p>
+            </div>
+            <div className="p-4 bg-slate-950/50 border border-slate-800 rounded-2xl">
+              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Empreendimentos Ativos</p>
+              <p className="text-xl font-black text-white">{empreendimentos.length}</p>
+            </div>
+            <div className="p-4 bg-slate-950/50 border border-slate-800 rounded-2xl">
+              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Usuários Registrados</p>
+              <p className="text-xl font-black text-white">{users.length}</p>
+            </div>
+          </div>
+
+          <div className="mt-4 p-4 bg-sky-500/5 border border-sky-500/10 rounded-2xl flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-sky-500/10 text-sky-500 rounded-lg">
+                <RefreshCcw size={14} className={isSyncing ? 'animate-spin' : ''} />
+              </div>
+              <div>
+                <p className="text-[9px] font-black text-white uppercase tracking-widest">Última Sincronização</p>
+                <p className="text-[8px] text-slate-500 font-bold">{lastSync || 'Agora mesmo'}</p>
+              </div>
+            </div>
+            <button 
+              onClick={onSync}
+              disabled={isSyncing}
+              className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-[8px] font-black uppercase tracking-widest rounded-xl transition-all active:scale-95 disabled:opacity-50"
+            >
+              Forçar Sync
+            </button>
+          </div>
+        </div>
+
         {/* Gestão de Logotipo e Identidade */}
         <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-6 shadow-xl">
           <h3 className="text-xs font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
