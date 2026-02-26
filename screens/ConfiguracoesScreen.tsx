@@ -137,7 +137,7 @@ const ConfiguracoesScreen: React.FC<Props> = ({
       <div className="flex items-center justify-between mb-8">
         <div>
           <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic">Configurações</h2>
-          <p className="text-slate-500 text-[8px] font-black uppercase tracking-[0.3em] mt-1">Terminal de Operações Local</p>
+          <p className="text-sky-500/60 text-[8px] font-black uppercase tracking-[0.3em] mt-1">Terminal de Operações Cloud (Shared)</p>
         </div>
         <img src={logoUrl} className="w-12 h-12 rounded-xl object-cover border border-sky-500/20 shadow-lg" alt="Logo" />
       </div>
@@ -258,7 +258,7 @@ const ConfiguracoesScreen: React.FC<Props> = ({
           <div className="relative z-10">
             <h3 className="text-white font-black text-sm uppercase tracking-widest mb-1">Backup & Transferência</h3>
             <p className="text-sky-100 text-[10px] mb-6 font-medium leading-relaxed max-w-[240px]">
-              O sistema utiliza armazenamento local. Exporte os dados para garantir que não os perca.
+              O sistema agora utiliza sincronização Cloud em tempo real. Exporte backups para segurança extra.
             </p>
             
             <div className="grid grid-cols-3 gap-2">

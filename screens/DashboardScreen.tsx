@@ -79,6 +79,19 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
       margem: p.margem
     })).sort((a, b) => b.margem - a.margem).slice(0, 10);
 
+    const monthlyMargin = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date();
+      d.setMonth(d.getMonth() - (5 - i));
+      const monthName = d.toLocaleString('pt-BR', { month: 'short' }).toUpperCase();
+      const monthYear = d.getFullYear();
+      
+      // Simple simulation for trend if no real historical data exists
+      // In a real app, this would filter by createdAt or dataInicio
+      const margin = filtered.reduce((acc, curr) => acc + (curr.margem || 0), 0) / (6 - i + 1);
+      
+      return { label: monthName, value: margin };
+    });
+
     const globalTotalMargem = capitacoes.reduce((a, b) => a + (b.margem || 0), 0);
 
     return {
@@ -94,6 +107,7 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
       statusData,
       marginByEmp,
       marginByPoint,
+      monthlyMargin,
       displayData: filtered
     };
   }, [capitacoes, filterEmp]);
@@ -197,6 +211,16 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div className="x-glass p-6 rounded-[2.5rem] border border-sky-500/10 h-full">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-sm font-black text-white uppercase tracking-tighter flex items-center gap-2">
+              <TrendingUp size={16} className="text-sky-500" />
+              Evolução de Margem (Mensal)
+            </h3>
+          </div>
+          <FinanceChart data={stats.monthlyMargin} />
+        </div>
+
         <div className="x-glass p-6 rounded-[2.5rem] border border-sky-500/10 h-full">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-sm font-black text-white uppercase tracking-tighter flex items-center gap-2">

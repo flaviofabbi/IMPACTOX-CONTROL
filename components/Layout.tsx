@@ -12,9 +12,10 @@ interface LayoutProps {
   currentUser: UserProfile;
   onSwitchUser: () => void;
   systemName: string;
+  onlineUsersCount: number;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, logoUrl, onLogoChange, currentUser, onSwitchUser, systemName }) => {
+const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, logoUrl, onLogoChange, currentUser, onSwitchUser, systemName, onlineUsersCount }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -67,7 +68,17 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, logoU
   };
 
   return (
-    <div className="h-screen w-screen bg-[#000000] flex flex-col md:flex-row overflow-hidden text-slate-100">
+    <div className="h-screen w-screen bg-[#000000] flex flex-col md:flex-row overflow-hidden text-slate-100 relative">
+      {/* Watermark Logo */}
+      <div className="fixed inset-0 pointer-events-none flex items-center justify-center opacity-[0.03] z-0 overflow-hidden">
+        <img 
+          src={logoUrl} 
+          alt="Watermark" 
+          className="w-[80vw] h-[80vw] object-contain grayscale rotate-[-15deg] scale-125"
+          referrerPolicy="no-referrer"
+        />
+      </div>
+
       <input 
         type="file" 
         ref={fileInputRef} 
@@ -203,7 +214,10 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, logoU
               <span>Firebase Cloud: Ativo</span>
             </div>
             <div className="flex items-center gap-2 justify-center text-[7px] font-black text-slate-500 uppercase tracking-widest">
-              <span>Sincronização em Tempo Real</span>
+              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-sky-500/10 border border-sky-500/20 rounded-full text-sky-400">
+                <Users size={10} />
+                <span>{onlineUsersCount} Acessos Simultâneos</span>
+              </div>
             </div>
           </div>
         </div>

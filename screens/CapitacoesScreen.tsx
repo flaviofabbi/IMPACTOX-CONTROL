@@ -80,36 +80,30 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, onDelete, onDeleteInact
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
+      <div className="flex flex-col gap-3">
         {filteredItems.map((item) => {
           const isAtivo = item.status === 'ativo';
           const isVencendo = item.status === 'vencendo';
           const isVencido = item.status === 'vencido';
 
+          const statusColor = isAtivo ? 'bg-emerald-500' : 
+                             isVencendo ? 'bg-amber-500' :
+                             isVencido ? 'bg-rose-500' : 'bg-slate-600';
+
           return (
             <div 
               key={item.id} 
-              className={`group bg-slate-900/40 backdrop-blur-md p-6 rounded-[2.5rem] border transition-all relative overflow-hidden ${
-                isAtivo ? 'border-emerald-500/20 hover:border-emerald-500/40' : 
-                isVencendo ? 'border-amber-500/20 hover:border-amber-500/40' :
-                isVencido ? 'border-rose-500/20 hover:border-rose-500/40' :
-                'border-slate-800 opacity-70'
-              }`}
+              className="group relative bg-slate-900/30 hover:bg-slate-900/60 border border-slate-800/50 hover:border-sky-500/30 p-4 md:p-5 rounded-2xl transition-all duration-300 backdrop-blur-sm"
             >
-              <div className="flex flex-col md:flex-row md:items-center gap-6">
-                <div className={`w-14 h-14 rounded-3xl flex items-center justify-center shrink-0 border-2 transition-transform group-hover:scale-105 ${
-                  isAtivo ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 
-                  isVencendo ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' :
-                  isVencido ? 'bg-rose-500/10 border-rose-500/30 text-rose-400' :
-                  'bg-slate-800 border-slate-700 text-slate-500'
-                }`}>
-                  {isAtivo ? <CheckCircle size={28} /> : isVencido ? <CircleX size={28} /> : <Activity size={28} />}
-                </div>
+              {/* Left Status Accent */}
+              <div className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 h-12 rounded-r-full ${statusColor} opacity-50 group-hover:opacity-100 transition-opacity`} />
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-1.5">
-                    <h4 className="font-black text-white text-lg tracking-tight truncate uppercase italic">{item.nome}</h4>
-                    <span className={`text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border-2 ${
+              <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
+                {/* Main Info Section */}
+                <div className="flex-1 min-w-0 ml-2">
+                  <div className="flex items-center gap-3 mb-1">
+                    <h4 className="font-bold text-white text-base tracking-tight truncate uppercase italic">{item.nome}</h4>
+                    <span className={`text-[7px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border ${
                       isAtivo ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 
                       isVencendo ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
                       isVencido ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
@@ -118,42 +112,44 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, onDelete, onDeleteInact
                       {item.status}
                     </span>
                   </div>
-                  <div className="flex flex-wrap gap-x-6 gap-y-2 text-[9px] font-bold text-slate-500 uppercase tracking-widest">
-                    <span className="flex items-center gap-2"><Hash size={14} className="text-sky-500" /> {item.cnpj}</span>
-                    <span className="flex items-center gap-2"><Briefcase size={14} className="text-sky-500" /> {item.empreendimentoNome}</span>
-                    <span className="flex items-center gap-2"><Calendar size={14} className="text-sky-500" /> Término: {item.dataTermino}</span>
+                  
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                    <span className="flex items-center gap-1.5"><Hash size={12} className="text-sky-500/70" /> {item.cnpj}</span>
+                    <span className="flex items-center gap-1.5"><Briefcase size={12} className="text-sky-500/70" /> {item.empreendimentoNome}</span>
+                    <span className="flex items-center gap-1.5"><Calendar size={12} className="text-sky-500/70" /> {item.dataTermino}</span>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between md:justify-end gap-8 md:pl-8 md:border-l border-slate-800">
-                  <div className="text-right">
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Valor Contratado</p>
-                    <p className="text-xl font-black text-white">{formatCurrency(item.valorContratado)}</p>
-                    <div className="flex items-center justify-end gap-1.5 mt-1">
-                      <div className={`w-2 h-2 rounded-full ${item.margem >= 0 ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
-                      <p className={`text-[10px] font-black ${item.margem >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        Margem: {formatCurrency(item.margem)}
+                {/* Values Section */}
+                <div className="flex items-center justify-between md:justify-end gap-6 md:gap-10 border-t md:border-t-0 md:border-l border-slate-800/50 pt-3 md:pt-0 md:pl-6">
+                  <div className="text-left md:text-right">
+                    <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Valor Contratado</p>
+                    <p className="text-sm font-black text-white tracking-tight">{formatCurrency(item.valorContratado)}</p>
+                    <div className="flex items-center md:justify-end gap-1.5 mt-0.5">
+                      <p className={`text-[9px] font-black ${item.margem >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        M: {formatCurrency(item.margem)}
                       </p>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center gap-3 relative z-[100] pointer-events-auto">
+
+                  {/* Quick Actions */}
+                  <div className="flex items-center gap-2">
                     <button 
                       type="button"
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); onUpdate(item); }}
-                      className="p-4 bg-sky-500/10 text-sky-400 hover:bg-sky-500 hover:text-white border-2 border-sky-500/20 rounded-2xl transition-all shadow-xl active:scale-90 cursor-pointer flex items-center justify-center"
-                      title="Editar Unidade"
+                      className="p-2.5 bg-sky-500/5 text-sky-400 hover:bg-sky-500 hover:text-white border border-sky-500/20 rounded-xl transition-all active:scale-90 cursor-pointer"
+                      title="Editar"
                     >
-                      <Pencil size={22} />
+                      <Pencil size={16} />
                     </button>
 
                     <button 
                       type="button"
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(item.id); }}
-                      className="p-4 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white border-2 border-rose-500/20 rounded-2xl transition-all shadow-xl active:scale-90 cursor-pointer flex items-center justify-center"
-                      title="Excluir Definitivamente"
+                      className="p-2.5 bg-rose-500/5 text-rose-400 hover:bg-rose-500 hover:text-white border border-rose-500/20 rounded-xl transition-all active:scale-90 cursor-pointer"
+                      title="Excluir"
                     >
-                      <Trash2 size={22} />
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 </div>

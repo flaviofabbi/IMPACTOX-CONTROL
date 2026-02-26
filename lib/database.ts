@@ -10,7 +10,9 @@ import {
   deleteDoc, 
   query, 
   where, 
-  addDoc 
+  addDoc,
+  onSnapshot,
+  Unsubscribe
 } from 'firebase/firestore';
 
 // Utility to remove undefined fields before saving to Firestore
@@ -33,10 +35,17 @@ import {
 
 export const db = {
   capitacoes: {
-    getAll: async (userId: string): Promise<Capitacao[]> => {
-      const q = query(collection(firestore, 'capitacoes'), where('userId', '==', userId));
+    getAll: async (): Promise<Capitacao[]> => {
+      const q = query(collection(firestore, 'capitacoes'));
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Capitacao));
+    },
+    subscribe: (callback: (items: Capitacao[]) => void): Unsubscribe => {
+      const q = query(collection(firestore, 'capitacoes'));
+      return onSnapshot(q, (snapshot) => {
+        const items = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Capitacao));
+        callback(items);
+      });
     },
     save: async (item: any) => {
       const cleaned = cleanData(item);
@@ -64,10 +73,17 @@ export const db = {
     }
   },
   empreendimentos: {
-    getAll: async (userId: string): Promise<Empreendimento[]> => {
-      const q = query(collection(firestore, 'empreendimentos'), where('userId', '==', userId));
+    getAll: async (): Promise<Empreendimento[]> => {
+      const q = query(collection(firestore, 'empreendimentos'));
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Empreendimento));
+    },
+    subscribe: (callback: (items: Empreendimento[]) => void): Unsubscribe => {
+      const q = query(collection(firestore, 'empreendimentos'));
+      return onSnapshot(q, (snapshot) => {
+        const items = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Empreendimento));
+        callback(items);
+      });
     },
     save: async (item: any) => {
       const cleaned = cleanData(item);
@@ -99,6 +115,36 @@ export const db = {
     },
     delete: async (uid: string) => {
       await deleteDoc(doc(firestore, 'users', uid));
+    },
+    updatePresence: async (uid: string, isOnline: boolean) => {
+      await setDoc(doc(firestore, 'presence', uid), {
+        uid,
+        isOnline,
+        lastSeen: new Date().toISOString()
+      }, { merge: true });
+    },
+    subscribePresence: (callback: (users: any[]) => void): Unsubscribe => {
+      const q = query(collection(firestore, 'presence'), where('isOnline', '==', true));
+      return onSnapshot(q, (snapshot) => {
+        callback(snapshot.docs.map(d => d.data()));
+      });
+    }
+  },
+  settings: {
+    get: async () => {
+      const docRef = doc(firestore, 'settings', 'global');
+      const snap = await getDoc(docRef);
+      return snap.exists() ? snap.data() : null;
+    },
+    save: async (data: any) => {
+      const docRef = doc(firestore, 'settings', 'global');
+      await setDoc(docRef, data, { merge: true });
+    },
+    subscribe: (callback: (data: any) => void): Unsubscribe => {
+      const docRef = doc(firestore, 'settings', 'global');
+      return onSnapshot(docRef, (snap) => {
+        if (snap.exists()) callback(snap.data());
+      });
     }
   },
   auth: {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AppTab, Capitacao, Empreendimento, UserProfile } from './types';
 import Layout from './components/Layout';
 import DashboardScreen from './screens/DashboardScreen';
@@ -20,9 +20,16 @@ const App: React.FC = () => {
   const [systemName, setSystemName] = useState('Impacto X');
 
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const currentUserRef = useRef<UserProfile | null>(null);
+  
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
+
   const [capitacoes, setCapitacoes] = useState<Capitacao[]>([]);
   const [empreendimentos, setEmpreendimentos] = useState<Empreendimento[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [onlineUsersCount, setOnlineUsersCount] = useState(1);
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
@@ -36,8 +43,19 @@ const App: React.FC = () => {
       }
     }, 5000);
 
-    const unsubscribe = db.auth.onAuthStateChanged(async (user) => {
+    let unsubCaps: (() => void) | null = null;
+    let unsubEmps: (() => void) | null = null;
+    let unsubPresence: (() => void) | null = null;
+    let unsubSettings: (() => void) | null = null;
+
+    const unsubscribeAuth = db.auth.onAuthStateChanged(async (user) => {
       try {
+        // Cleanup previous subs if any
+        if (unsubCaps) unsubCaps();
+        if (unsubEmps) unsubEmps();
+        if (unsubPresence) unsubPresence();
+        if (unsubSettings) unsubSettings();
+
         if (user) {
           let profile = await db.users.getProfile(user.uid);
           if (!profile) {
@@ -49,11 +67,38 @@ const App: React.FC = () => {
               avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${user.uid}`,
               cor: 'from-sky-500 to-blue-700'
             };
+            await db.users.setProfile(user.uid, profile);
           }
           setCurrentUser(profile);
-          await refreshData(profile.id);
+          
+          // Update Presence
+          await db.users.updatePresence(user.uid, true);
+          
+          // Real-time subscriptions (Shared)
+          unsubCaps = db.capitacoes.subscribe((items) => {
+            setCapitacoes(items);
+          });
+          unsubEmps = db.empreendimentos.subscribe((items) => {
+            setEmpreendimentos(items);
+          });
+          
+          // Settings subscription
+          unsubSettings = db.settings.subscribe((data) => {
+            if (data.systemName) setSystemName(data.systemName);
+            if (data.logoUrl) setLogoUrl(data.logoUrl);
+          });
+          
+          // Presence subscription
+          unsubPresence = db.users.subscribePresence((activeUsers) => {
+            setOnlineUsersCount(activeUsers.length);
+          });
+          
+          // Users list
+          db.users.getAll().then(setUsers).catch(console.error);
         } else {
           setCurrentUser(null);
+          setCapitacoes([]);
+          setEmpreendimentos([]);
         }
       } catch (err) {
         console.error("Erro na inicialização de perfil:", err);
@@ -63,18 +108,35 @@ const App: React.FC = () => {
         clearTimeout(timeout);
       }
     });
+
+    // Handle tab close/refresh to update presence
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && currentUserRef.current) {
+        db.users.updatePresence(currentUserRef.current.id, false);
+      } else if (document.visibilityState === 'visible' && currentUserRef.current) {
+        db.users.updatePresence(currentUserRef.current.id, true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
-      unsubscribe();
+      unsubscribeAuth();
+      if (unsubCaps) unsubCaps();
+      if (unsubEmps) unsubEmps();
+      if (unsubPresence) unsubPresence();
+      if (unsubSettings) unsubSettings();
+      if (currentUserRef.current) db.users.updatePresence(currentUserRef.current.id, false);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearTimeout(timeout);
     };
   }, []);
 
-  const refreshData = async (userId: string) => {
+  const refreshData = async () => {
     setIsSyncing(true);
     try {
       const [caps, emps, allUsers] = await Promise.all([
-        db.capitacoes.getAll(userId).catch(() => []),
-        db.empreendimentos.getAll(userId).catch(() => []),
+        db.capitacoes.getAll().catch(() => []),
+        db.empreendimentos.getAll().catch(() => []),
         db.users.getAll().catch(() => [])
       ]);
       
@@ -89,13 +151,21 @@ const App: React.FC = () => {
   };
 
   const handleLogout = async () => {
+    if (currentUser) {
+      await db.users.updatePresence(currentUser.id, false);
+    }
     await db.auth.logout();
     setCurrentUser(null);
   };
 
-  const handleLogoChange = (newLogo: string) => {
+  const handleLogoChange = async (newLogo: string) => {
     setLogoUrl(newLogo);
-    localStorage.setItem('impacto_logo', newLogo);
+    await db.settings.save({ logoUrl: newLogo });
+  };
+
+  const handleSystemNameChange = async (newName: string) => {
+    setSystemName(newName);
+    await db.settings.save({ systemName: newName });
   };
 
   const handleImportData = async (data: any) => {
@@ -116,7 +186,7 @@ const App: React.FC = () => {
           await db.empreendimentos.save(e);
         }
       }
-      await refreshData(currentUser.id);
+      await refreshData();
       alert('Dados importados com sucesso!');
     } catch (e) {
       alert('Erro na importação: ' + e);
@@ -155,7 +225,7 @@ const App: React.FC = () => {
             cor: 'from-emerald-500 to-teal-700'
           };
           setCurrentUser(guestUser);
-          refreshData(guestUser.id);
+          refreshData();
         }} 
       />
     );
@@ -173,6 +243,7 @@ const App: React.FC = () => {
       currentUser={currentUser}
       onSwitchUser={handleLogout}
       systemName={systemName}
+      onlineUsersCount={onlineUsersCount}
     >
       {activeTab === 'Dashboard' && (
         <DashboardScreen 
@@ -201,11 +272,11 @@ const App: React.FC = () => {
           logoUrl={logoUrl}
           onDelete={async (id) => { 
             await db.capitacoes.delete(id.toString()); 
-            await refreshData(currentUser.id); 
+            await refreshData(); 
           }}
           onDeleteInactive={async () => { 
             await db.capitacoes.clearInactives(currentUser.id); 
-            await refreshData(currentUser.id); 
+            await refreshData(); 
           }}
           onUpdate={(cap) => {
             setEditingCapitacao(cap);
@@ -223,11 +294,11 @@ const App: React.FC = () => {
           onAddRequest={() => { setNewType('empreendimento'); setActiveTab('Novo'); }} 
           onDelete={async (id) => { 
             await db.empreendimentos.delete(id.toString()); 
-            await refreshData(currentUser.id); 
+            await refreshData(); 
           }}
           onUpdate={async (u) => { 
             await db.empreendimentos.save(u); 
-            await refreshData(currentUser.id); 
+            await refreshData(); 
           }}
         />
       )}
@@ -248,7 +319,7 @@ const App: React.FC = () => {
                 mes: ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][new Date().getMonth()]
               });
               setEditingCapitacao(null);
-              await refreshData(currentUser.id);
+              await refreshData();
               setActiveTab('Capitações');
             }} 
             onCancel={() => { setEditingCapitacao(null); setActiveTab('Capitações'); }} 
@@ -258,7 +329,7 @@ const App: React.FC = () => {
             logoUrl={logoUrl}
             onSave={async (nova) => {
               await db.empreendimentos.save({ ...nova, userId: currentUser.id });
-              await refreshData(currentUser.id);
+              await refreshData();
               setActiveTab('Empreendimentos');
             }}
             onCancel={() => setActiveTab('Empreendimentos')}
@@ -274,19 +345,19 @@ const App: React.FC = () => {
           onAddUser={async (u) => { 
              const uid = 'u_' + Math.random().toString(36).substr(2, 9);
              await db.users.setProfile(uid, { ...u, id: uid });
-             await refreshData(currentUser.id);
+             await refreshData();
           }} 
           onUpdateUser={async (u) => { 
             await db.users.setProfile(u.id, u); 
-            await refreshData(currentUser.id); 
+            await refreshData(); 
           }} 
           onDeleteUser={async (id) => { 
             await db.users.delete(id);
-            await refreshData(currentUser.id);
+            await refreshData();
           }}
           capitacoes={capitacoes} empreendimentos={empreendimentos} accessLogs={[]}
-          onImport={handleImportData} isSyncing={isSyncing} lastSync={""} onSync={() => refreshData(currentUser.id)}
-          onLogout={handleLogout} systemName={systemName} onSystemNameChange={setSystemName}
+          onImport={handleImportData} isSyncing={isSyncing} lastSync={""} onSync={() => refreshData()}
+          onLogout={handleLogout} systemName={systemName} onSystemNameChange={handleSystemNameChange}
         />
       )}
     </Layout>
