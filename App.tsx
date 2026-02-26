@@ -262,6 +262,45 @@ const App: React.FC = () => {
               setActiveTab(tab);
             }
           }}
+          onGenerateSampleData={() => {
+            const demoData = {
+              empreendimentos: [
+                { id: 'emp1', nome: 'Unidade Central', responsavel: 'Dr. Silva', status: 'ativo', email: 'contato@central.com', telefone: '11999999999' },
+                { id: 'emp2', nome: 'Unidade Norte', responsavel: 'Dra. Maria', status: 'ativo', email: 'contato@norte.com', telefone: '11888888888' }
+              ],
+              capitacoes: [
+                { 
+                  id: 'cap1', 
+                  nome: 'Ponto Alpha', 
+                  cnpj: '12.345.678/0001-90', 
+                  valorContratado: 50000, 
+                  valorRepassado: 35000, 
+                  margem: 15000, 
+                  status: 'ativo', 
+                  empreendimentoId: 'emp1', 
+                  empreendimentoNome: 'Unidade Central',
+                  dataInicio: '2025-01-01',
+                  tempoContrato: 12,
+                  dataTermino: '2026-01-01'
+                },
+                { 
+                  id: 'cap2', 
+                  nome: 'Ponto Beta', 
+                  cnpj: '98.765.432/0001-10', 
+                  valorContratado: 80000, 
+                  valorRepassado: 60000, 
+                  margem: 20000, 
+                  status: 'vencendo', 
+                  empreendimentoId: 'emp2', 
+                  empreendimentoNome: 'Unidade Norte',
+                  dataInicio: '2025-02-01',
+                  tempoContrato: 12,
+                  dataTermino: '2026-02-01'
+                }
+              ]
+            };
+            handleImportData(demoData);
+          }}
         />
       )}
       

@@ -39,18 +39,19 @@ interface Props {
   isSyncing: boolean;
   onNavigate: (tab: string) => void;
   logoUrl: string;
+  onGenerateSampleData?: () => void;
 }
 
-const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onNavigate, logoUrl }) => {
+const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onNavigate, logoUrl, onGenerateSampleData }) => {
   const [filterEmp, setFilterEmp] = useState('all');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const stats = useMemo(() => {
     const filtered = filterEmp === 'all' ? capitacoes : capitacoes.filter(c => c.empreendimentoId === filterEmp);
     
-    const totalContratado = filtered.reduce((a, b) => a + (b.valorContratado || 0), 0);
-    const totalRepassado = filtered.reduce((a, b) => a + (b.valorRepassado || 0), 0);
-    const totalMargem = filtered.reduce((a, b) => a + (b.margem || 0), 0);
+    const totalContratado = filtered.reduce((a, b) => a + (Number(b.valorContratado) || 0), 0);
+    const totalRepassado = filtered.reduce((a, b) => a + (Number(b.valorRepassado) || 0), 0);
+    const totalMargem = filtered.reduce((a, b) => a + (Number(b.margem) || 0), 0);
     
     const ativos = filtered.filter(c => c.status === 'ativo').length;
     const vencendo = filtered.filter(c => c.status === 'vencendo').length;
@@ -58,10 +59,10 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
     const inativos = filtered.filter(c => c.status === 'inativo').length;
 
     const statusData = [
-      { name: 'Ativos', value: ativos || 0, color: '#10b981' },
-      { name: 'Vencendo', value: vencendo || 0, color: '#f59e0b' },
-      { name: 'Vencidos', value: vencidos || 0, color: '#ef4444' },
-      { name: 'Inativos', value: inativos || 0, color: '#64748b' },
+      { name: 'Ativos', value: Number(ativos) || 0, color: '#10b981' },
+      { name: 'Vencendo', value: Number(vencendo) || 0, color: '#f59e0b' },
+      { name: 'Vencidos', value: Number(vencidos) || 0, color: '#ef4444' },
+      { name: 'Inativos', value: Number(inativos) || 0, color: '#64748b' },
     ];
 
     const hasStatusData = statusData.some(d => d.value > 0);
@@ -71,30 +72,30 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
       .filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
 
     const marginByEmp = empreendimentosUnicos.map(emp => {
-      const empCapitacoes = capitacoes.filter(c => c.empreendimentoId === emp.id);
-      const margin = empCapitacoes.reduce((a, b) => a + (b.margem || 0), 0);
-      return { name: emp.nome, margem: margin };
+      const empCapitacoes = capitacoes.filter(c => String(c.empreendimentoId) === String(emp.id));
+      const margin = empCapitacoes.reduce((a, b) => a + (Number(b.margem) || 0), 0);
+      return { name: emp.nome, margem: Number(margin) || 0 };
     }).sort((a, b) => b.margem - a.margem).slice(0, 5);
 
     const marginByPoint = filtered.map(p => ({
       name: p.nome,
-      margem: p.margem
+      margem: Number(p.margem) || 0
     })).sort((a, b) => b.margem - a.margem).slice(0, 10);
 
     const monthlyMargin = Array.from({ length: 6 }, (_, i) => {
       const d = new Date();
       d.setMonth(d.getMonth() - (5 - i));
       const monthName = d.toLocaleString('pt-BR', { month: 'short' }).toUpperCase();
-      const monthYear = d.getFullYear();
       
-      // Simple simulation for trend if no real historical data exists
-      // In a real app, this would filter by createdAt or dataInicio
-      const margin = filtered.reduce((acc, curr) => acc + (curr.margem || 0), 0) / (6 - i + 1);
+      // Better simulation for trend if no real historical data exists
+      const baseMargin = filtered.reduce((acc, curr) => acc + (Number(curr.margem) || 0), 0);
+      const factor = 0.6 + (i * 0.08); // 0.6, 0.68, 0.76, 0.84, 0.92, 1.0
+      const margin = (baseMargin / (filtered.length || 1)) * (i + 1) * factor;
       
-      return { label: monthName, value: margin };
+      return { label: monthName, value: Number(margin) || 0 };
     });
 
-    const globalTotalMargem = capitacoes.reduce((a, b) => a + (b.margem || 0), 0);
+    const globalTotalMargem = capitacoes.reduce((a, b) => a + (Number(b.margem) || 0), 0);
 
     return {
       totalContratado,
@@ -186,6 +187,15 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
       
       <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
+          {capitacoes.length > 0 && onGenerateSampleData && (
+            <button 
+              onClick={onGenerateSampleData}
+              className="bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl hover:bg-amber-500 hover:text-white transition-all flex items-center gap-2"
+            >
+              <Plus size={14} />
+              Gerar Dados de Teste
+            </button>
+          )}
           <select 
             value={filterEmp}
             onChange={(e) => setFilterEmp(e.target.value)}
@@ -205,6 +215,12 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
         </div>
       </div>
 
+      <div className="mb-4 p-2 bg-slate-900/50 border border-slate-800 rounded-lg text-[8px] font-black text-slate-500 uppercase flex gap-4 animate-pulse">
+        <span>Itens Processados: {stats.count}</span>
+        <span>Margem Calculada: {formatCurrency(stats.totalMargem)}</span>
+        <span>Status: {stats.hasStatusData ? 'OK' : 'SEM DADOS'}</span>
+      </div>
+
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         <StatCard title="Total Contratado" value={formatCurrency(stats.totalContratado)} icon={<DollarSign />} color="bg-sky-600" />
         <StatCard title="Margem (Filtro)" value={formatCurrency(stats.totalMargem)} icon={<TrendingUp />} color="bg-emerald-600" />
@@ -221,11 +237,11 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
               Evolução de Margem (Mensal)
             </h3>
           </div>
-          <div className="h-[300px] w-full flex items-center justify-center">
+          <div className="h-[300px] w-full">
             {stats.monthlyMargin.length > 0 ? (
               <FinanceChart data={stats.monthlyMargin} />
             ) : (
-              <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Sem dados históricos</div>
+              <div className="h-full w-full flex items-center justify-center text-slate-500 text-[10px] font-black uppercase tracking-widest">Sem dados históricos</div>
             )}
           </div>
         </div>
@@ -237,9 +253,9 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
               Margem por Empreendimento (Top 5)
             </h3>
           </div>
-          <div className="h-[300px] w-full flex items-center justify-center">
+          <div className="h-[300px] w-full">
             {stats.marginByEmp.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" key={`emp-chart-${stats.count}`}>
                 <BarChart data={stats.marginByEmp} layout="vertical" margin={{ left: 10, right: 30, top: 10, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#1e293b" />
                   <XAxis type="number" hide />
@@ -260,7 +276,7 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Sem dados de margem</div>
+              <div className="h-full w-full flex items-center justify-center text-slate-500 text-[10px] font-black uppercase tracking-widest">Sem dados de margem</div>
             )}
           </div>
         </div>
@@ -272,9 +288,9 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
               Top 10 Pontos por Margem
             </h3>
           </div>
-          <div className="h-[300px] w-full flex items-center justify-center">
+          <div className="h-[300px] w-full">
             {stats.marginByPoint.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" key={`point-chart-${stats.count}`}>
                 <BarChart data={stats.marginByPoint} layout="vertical" margin={{ left: 10, right: 30, top: 10, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#1e293b" />
                   <XAxis type="number" hide />
@@ -295,7 +311,7 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Sem dados de pontos</div>
+              <div className="h-full w-full flex items-center justify-center text-slate-500 text-[10px] font-black uppercase tracking-widest">Sem dados de pontos</div>
             )}
           </div>
         </div>
@@ -305,9 +321,9 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
             <PieChartIcon size={16} className="text-sky-500" />
             Distribuição de Status
           </h3>
-          <div className="h-[250px] w-full flex items-center justify-center">
+          <div className="h-[250px] w-full">
             {stats.hasStatusData ? (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" key={`pie-chart-${stats.count}`}>
                 <PieChart>
                   <Pie
                     data={stats.statusData.filter(s => s.value > 0)}
@@ -329,7 +345,7 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Sem dados de status</div>
+              <div className="h-full w-full flex items-center justify-center text-slate-500 text-[10px] font-black uppercase tracking-widest">Sem dados de status</div>
             )}
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2">
