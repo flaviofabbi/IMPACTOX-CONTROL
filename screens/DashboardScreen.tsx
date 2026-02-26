@@ -58,11 +58,13 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
     const inativos = filtered.filter(c => c.status === 'inativo').length;
 
     const statusData = [
-      { name: 'Ativos', value: ativos, color: '#10b981' },
-      { name: 'Vencendo', value: vencendo, color: '#f59e0b' },
-      { name: 'Vencidos', value: vencidos, color: '#ef4444' },
-      { name: 'Inativos', value: inativos, color: '#64748b' },
-    ].filter(d => d.value > 0);
+      { name: 'Ativos', value: ativos || 0, color: '#10b981' },
+      { name: 'Vencendo', value: vencendo || 0, color: '#f59e0b' },
+      { name: 'Vencidos', value: vencidos || 0, color: '#ef4444' },
+      { name: 'Inativos', value: inativos || 0, color: '#64748b' },
+    ];
+
+    const hasStatusData = statusData.some(d => d.value > 0);
 
     const empreendimentosUnicos = Array.from(new Set(capitacoes.map(c => JSON.stringify({ id: c.empreendimentoId, nome: c.empreendimentoNome }))))
       .map((s: string) => JSON.parse(s) as { id: string, nome: string })
@@ -105,6 +107,7 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
       count: filtered.length,
       empreendimentosUnicos,
       statusData,
+      hasStatusData,
       marginByEmp,
       marginByPoint,
       monthlyMargin,
@@ -218,7 +221,13 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
               Evolução de Margem (Mensal)
             </h3>
           </div>
-          <FinanceChart data={stats.monthlyMargin} />
+          <div className="h-[300px] w-full flex items-center justify-center">
+            {stats.monthlyMargin.length > 0 ? (
+              <FinanceChart data={stats.monthlyMargin} />
+            ) : (
+              <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Sem dados históricos</div>
+            )}
+          </div>
         </div>
 
         <div className="x-glass p-6 rounded-[2.5rem] border border-sky-500/10 h-full">
@@ -228,27 +237,31 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
               Margem por Empreendimento (Top 5)
             </h3>
           </div>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.marginByEmp} layout="vertical" margin={{ left: 40, right: 40 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#1e293b" />
-                <XAxis type="number" hide />
-                <YAxis 
-                  dataKey="name" 
-                  type="category" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fill: '#94a3b8', fontSize: 10 }}
-                  width={100}
-                />
-                <RechartsTooltip 
-                  cursor={{ fill: 'rgba(14, 165, 233, 0.05)' }}
-                  contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', border: '1px solid #1e293b' }}
-                  formatter={(value: number) => [formatCurrency(value), 'Margem']}
-                />
-                <Bar dataKey="margem" fill="#0ea5e9" radius={[0, 8, 8, 0]} barSize={20} />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="h-[300px] w-full flex items-center justify-center">
+            {stats.marginByEmp.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.marginByEmp} layout="vertical" margin={{ left: 10, right: 30, top: 10, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#1e293b" />
+                  <XAxis type="number" hide />
+                  <YAxis 
+                    dataKey="name" 
+                    type="category" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fill: '#94a3b8', fontSize: 10 }}
+                    width={80}
+                  />
+                  <RechartsTooltip 
+                    cursor={{ fill: 'rgba(14, 165, 233, 0.05)' }}
+                    contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', border: '1px solid #1e293b' }}
+                    formatter={(value: number) => [formatCurrency(value), 'Margem']}
+                  />
+                  <Bar dataKey="margem" fill="#0ea5e9" radius={[0, 8, 8, 0]} barSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Sem dados de margem</div>
+            )}
           </div>
         </div>
 
@@ -259,43 +272,45 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
               Top 10 Pontos por Margem
             </h3>
           </div>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.marginByPoint} layout="vertical" margin={{ left: 40, right: 40 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#1e293b" />
-                <XAxis type="number" hide />
-                <YAxis 
-                  dataKey="name" 
-                  type="category" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fill: '#94a3b8', fontSize: 10 }}
-                  width={100}
-                />
-                <RechartsTooltip 
-                  cursor={{ fill: 'rgba(16, 185, 129, 0.05)' }}
-                  contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', border: '1px solid #1e293b' }}
-                  formatter={(value: number) => [formatCurrency(value), 'Margem']}
-                />
-                <Bar dataKey="margem" fill="#10b981" radius={[0, 8, 8, 0]} barSize={15} />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="h-[300px] w-full flex items-center justify-center">
+            {stats.marginByPoint.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.marginByPoint} layout="vertical" margin={{ left: 10, right: 30, top: 10, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#1e293b" />
+                  <XAxis type="number" hide />
+                  <YAxis 
+                    dataKey="name" 
+                    type="category" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fill: '#94a3b8', fontSize: 10 }}
+                    width={80}
+                  />
+                  <RechartsTooltip 
+                    cursor={{ fill: 'rgba(16, 185, 129, 0.05)' }}
+                    contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', border: '1px solid #1e293b' }}
+                    formatter={(value: number) => [formatCurrency(value), 'Margem']}
+                  />
+                  <Bar dataKey="margem" fill="#10b981" radius={[0, 8, 8, 0]} barSize={15} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Sem dados de pontos</div>
+            )}
           </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <div className="lg:col-span-1">
-          <div className="x-glass p-6 rounded-[2.5rem] border border-sky-500/10 h-full">
-            <h3 className="text-sm font-black text-white uppercase tracking-tighter mb-6 flex items-center gap-2">
-              <PieChartIcon size={16} className="text-sky-500" />
-              Distribuição de Status
-            </h3>
-            <div className="h-[250px] w-full">
+        <div className="x-glass p-6 rounded-[2.5rem] border border-sky-500/10 h-full">
+          <h3 className="text-sm font-black text-white uppercase tracking-tighter mb-6 flex items-center gap-2">
+            <PieChartIcon size={16} className="text-sky-500" />
+            Distribuição de Status
+          </h3>
+          <div className="h-[250px] w-full flex items-center justify-center">
+            {stats.hasStatusData ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={stats.statusData}
+                    data={stats.statusData.filter(s => s.value > 0)}
                     cx="50%"
                     cy="50%"
                     innerRadius={60}
@@ -303,7 +318,7 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
                     paddingAngle={5}
                     dataKey="value"
                   >
-                    {stats.statusData.map((entry, index) => (
+                    {stats.statusData.filter(s => s.value > 0).map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
@@ -313,15 +328,17 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
                   <Legend verticalAlign="bottom" height={36}/>
                 </PieChart>
               </ResponsiveContainer>
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              {stats.statusData.map((s, i) => (
-                <div key={i} className="flex items-center gap-2 p-2 bg-slate-900/50 rounded-xl border border-slate-800">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }}></div>
-                  <span className="text-[8px] font-black text-slate-400 uppercase">{s.name}: {s.value}</span>
-                </div>
-              ))}
-            </div>
+            ) : (
+              <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Sem dados de status</div>
+            )}
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            {stats.statusData.filter(s => s.value > 0).map((s, i) => (
+              <div key={i} className="flex items-center gap-2 p-2 bg-slate-900/50 rounded-xl border border-slate-800">
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }}></div>
+                <span className="text-[8px] font-black text-slate-400 uppercase">{s.name}: {s.value}</span>
+              </div>
+            ))}
           </div>
         </div>
 
