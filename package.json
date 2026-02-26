@@ -1,7 +1,7 @@
 {
-  "name": "pontos-capitação-impacto-x",
+  "name": "impactox-control",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,8 +13,8 @@
     "@tailwindcss/vite": "^4.2.1",
     "firebase": "^12.9.0",
     "lucide-react": "0.463.0",
-    "react": "^18.3.1",
-"react-dom": "^18.3.1"
+    "react": "^18.2.0",
+"react-dom": "^18.2.0"
     "recharts": "2.13.0",
     "tailwindcss": "^4.2.1",
     "xlsx": "0.18.5"
