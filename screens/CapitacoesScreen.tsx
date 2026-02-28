@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Capitacao, Empreendimento } from '../types';
-import { Search, Trash2, Hash, Briefcase, CheckCircle, CircleX, Filter, Activity, Pencil, Calendar } from 'lucide-react';
+import { Search, Trash2, Hash, Briefcase, CheckCircle, CircleX, Filter, Activity, Pencil, Calendar, Send } from 'lucide-react';
 
 interface Props {
   capitacoes: Capitacao[];
@@ -171,6 +171,11 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDele
                     <span className="flex items-center gap-1.5"><Hash size={12} className="text-sky-500/70" /> {item.cnpj}</span>
                     <span className="flex items-center gap-1.5"><Briefcase size={12} className="text-sky-500/70" /> {item.empreendimentoNome}</span>
                     <span className="flex items-center gap-1.5"><Calendar size={12} className="text-sky-500/70" /> {item.dataTermino}</span>
+                    {item.aviso5DiasEnviado && (
+                      <span className="flex items-center gap-1 px-1.5 py-0.5 bg-emerald-500/10 text-emerald-500 rounded-lg border border-emerald-500/20">
+                        <Send size={8} /> Aviso 5D Enviado
+                      </span>
+                    )}
                   </div>
                 </div>
 

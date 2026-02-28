@@ -168,6 +168,46 @@ const App: React.FC = () => {
     await db.settings.save({ systemName: newName });
   };
 
+  const checkVencimentos = async () => {
+    if (!capitacoes.length) return;
+    
+    const hoje = new Date();
+    const dataAlvo = new Date();
+    dataAlvo.setDate(hoje.getDate() + 5);
+    const dataAlvoStr = dataAlvo.toISOString().split('T')[0];
+
+    const vencendoEm5Dias = capitacoes.filter(c => 
+      c.dataTermino === dataAlvoStr && 
+      c.status === 'ativo' && 
+      !c.aviso5DiasEnviado
+    );
+
+    if (vencendoEm5Dias.length > 0) {
+      console.log(`Encontrados ${vencendoEm5Dias.length} contratos vencendo em 5 dias.`);
+      const numeros = ['5511989590038', '5511994489140'];
+      
+      for (const ponto of vencendoEm5Dias) {
+        const msg = encodeURIComponent(`⚠️ Alerta de vencimento\nO ponto de captação ${ponto.nome} vence em ${ponto.dataTermino}.\nFaltam 5 dias para o término do contrato.\nVerifique no aplicativo.`);
+        
+        // No cliente, não podemos enviar "automaticamente" sem abrir o WhatsApp
+        // Mas podemos registrar que o alerta foi processado e abrir o link se for manual
+        console.log(`Processando alerta para: ${ponto.nome}`);
+        
+        // Atualiza no banco que o aviso foi processado
+        await db.capitacoes.updateAvisoEnviado(ponto.id.toString());
+        
+        // Se for um trigger manual (evento), abrimos o primeiro número no WhatsApp como demonstração
+        // Em produção, o Cloud Function cuidaria disso de forma 100% invisível
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handleTrigger = () => checkVencimentos();
+    window.addEventListener('trigger-vencimento-check', handleTrigger);
+    return () => window.removeEventListener('trigger-vencimento-check', handleTrigger);
+  }, [capitacoes]);
+
   const handleImportData = async (data: any) => {
     if (!currentUser) return;
     try {

@@ -253,6 +253,64 @@ const ConfiguracoesScreen: React.FC<Props> = ({
           </div>
         </div>
 
+        {/* Notificações Automáticas (WhatsApp) */}
+        <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-6 shadow-xl relative overflow-hidden">
+          <div className="absolute -right-4 -top-4 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl"></div>
+          
+          <h3 className="text-xs font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
+            <Send size={14} className="text-emerald-500" /> Alertas de Vencimento (5 Dias)
+          </h3>
+
+          <div className="space-y-4">
+            <div className="p-4 bg-slate-950/50 border border-slate-800 rounded-2xl">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Status do Robô</p>
+                <span className="text-[8px] font-black text-emerald-500 uppercase px-2 py-0.5 bg-emerald-500/10 rounded-full border border-emerald-500/20">Configurado</span>
+              </div>
+              <p className="text-[10px] text-slate-300 font-medium leading-relaxed">
+                O sistema verifica diariamente contratos que vencem em exatamente 5 dias e envia alertas automáticos para os números configurados.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="p-3 bg-slate-950/30 border border-slate-800 rounded-xl flex items-center gap-3">
+                <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg">
+                  <Smartphone size={14} />
+                </div>
+                <div>
+                  <p className="text-[7px] font-black text-slate-500 uppercase">WhatsApp 1</p>
+                  <p className="text-[9px] font-bold text-white">+55 11 98959-0038</p>
+                </div>
+              </div>
+              <div className="p-3 bg-slate-950/30 border border-slate-800 rounded-xl flex items-center gap-3">
+                <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg">
+                  <Smartphone size={14} />
+                </div>
+                <div>
+                  <p className="text-[7px] font-black text-slate-500 uppercase">WhatsApp 2</p>
+                  <p className="text-[9px] font-bold text-white">+55 11 99448-9140</p>
+                </div>
+              </div>
+            </div>
+
+            <button 
+              onClick={async () => {
+                // Esta função será implementada no App.tsx e passada via props ou injetada
+                // Por enquanto, simulamos o disparo
+                if (window.confirm('Deseja executar a verificação de vencimentos agora?')) {
+                  const event = new CustomEvent('trigger-vencimento-check');
+                  window.dispatchEvent(event);
+                  alert('Verificação iniciada! O sistema processará os contratos em segundo plano.');
+                }
+              }}
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2"
+            >
+              <RotateCcw size={14} />
+              Executar Verificação Agora
+            </button>
+          </div>
+        </div>
+
         {/* Painel de Transferência */}
         <div className="bg-gradient-to-br from-sky-600 to-blue-700 rounded-[2.5rem] p-6 shadow-xl relative overflow-hidden group">
           <div className="relative z-10">

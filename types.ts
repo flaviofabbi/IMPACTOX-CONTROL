@@ -34,6 +34,7 @@ export interface Capitacao {
   dataInicio: string;
   tempoContrato: number; // meses
   dataTermino: string;
+  aviso5DiasEnviado?: boolean;
   userId?: string;
   createdAt?: any;
   // Campos de endereço detalhados (mantidos para compatibilidade)

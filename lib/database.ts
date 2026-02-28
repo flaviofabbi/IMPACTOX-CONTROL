@@ -70,6 +70,10 @@ export const db = {
       const snapshot = await getDocs(q);
       const deletePromises = snapshot.docs.map(d => deleteDoc(d.ref));
       await Promise.all(deletePromises);
+    },
+    updateAvisoEnviado: async (id: string) => {
+      const docRef = doc(firestore, 'capitacoes', id);
+      await updateDoc(docRef, { aviso5DiasEnviado: true });
     }
   },
   empreendimentos: {
