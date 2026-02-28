@@ -4,6 +4,8 @@ import { getAnalytics } from "firebase/analytics";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
+// Firebase configuration
+// For Vercel deployment, set these variables in the Vercel Dashboard
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDFpQOZ0AekVJuFcrrT1uXj1x-hivwp61w",
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "impacto-x-hipica.firebaseapp.com",

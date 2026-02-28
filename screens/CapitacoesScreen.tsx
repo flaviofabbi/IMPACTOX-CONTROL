@@ -13,9 +13,13 @@ interface Props {
   logoUrl: string;
 }
 
-const CapitacoesScreen: React.FC<Props> = ({ capitacoes, onDelete, onDeleteInactive, onUpdate, logoUrl }) => {
+const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDelete, onDeleteInactive, onUpdate, logoUrl }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'ativo' | 'vencendo' | 'vencido' | 'inativo'>('all');
+  const [empFilter, setEmpFilter] = useState<string>('all');
+  const [minValor, setMinValor] = useState<string>('');
+  const [maxValor, setMaxValor] = useState<string>('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const filteredItems = useMemo(() => {
     return capitacoes.filter(item => {
@@ -23,9 +27,15 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, onDelete, onDeleteInact
         item.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
         (item.cnpj && item.cnpj.includes(searchTerm));
       const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
-      return matchesSearch && matchesStatus;
+      const matchesEmp = empFilter === 'all' || String(item.empreendimentoId) === empFilter;
+      
+      const val = Number(item.valorContratado) || 0;
+      const matchesMin = minValor === '' || val >= Number(minValor);
+      const matchesMax = maxValor === '' || val <= Number(maxValor);
+
+      return matchesSearch && matchesStatus && matchesEmp && matchesMin && matchesMax;
     });
-  }, [capitacoes, searchTerm, statusFilter]);
+  }, [capitacoes, searchTerm, statusFilter, empFilter, minValor, maxValor]);
 
   const hasInactive = useMemo(() => {
     return capitacoes.some(c => c.status === 'inativo');
@@ -48,7 +58,6 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, onDelete, onDeleteInact
       </div>
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-
         <div className="flex flex-wrap gap-2 items-center">
           {hasInactive && onDeleteInactive && (
             <button 
@@ -66,8 +75,53 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, onDelete, onDeleteInact
             <button onClick={() => setStatusFilter('vencido')} className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${statusFilter === 'vencido' ? 'bg-rose-600 text-white shadow-lg' : 'text-slate-500 hover:text-rose-400'}`}>Vencidos</button>
             <button onClick={() => setStatusFilter('inativo')} className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${statusFilter === 'inativo' ? 'bg-slate-700 text-white shadow-lg' : 'text-slate-500 hover:text-slate-400'}`}>Inativos</button>
           </div>
+
+          <button 
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black transition-all text-[9px] uppercase tracking-widest border ${showAdvanced ? 'bg-sky-600 text-white border-sky-500' : 'bg-slate-900/50 text-slate-400 border-slate-800 hover:border-sky-500/30'}`}
+          >
+            <Filter size={14} /> {showAdvanced ? 'Ocultar Filtros' : 'Filtros Avançados'}
+          </button>
         </div>
       </div>
+
+      {showAdvanced && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 p-6 bg-slate-900/40 rounded-[2rem] border border-slate-800 animate-in slide-in-from-top-4 duration-300">
+          <div>
+            <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Empreendimento</label>
+            <select 
+              value={empFilter}
+              onChange={(e) => setEmpFilter(e.target.value)}
+              className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20 transition-all appearance-none cursor-pointer"
+            >
+              <option value="all">Todos</option>
+              {empreendimentos.map(emp => (
+                <option key={emp.id} value={emp.id}>{emp.nome}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Valor Mínimo</label>
+            <input 
+              type="number" 
+              placeholder="R$ 0,00"
+              value={minValor}
+              onChange={(e) => setMinValor(e.target.value)}
+              className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Valor Máximo</label>
+            <input 
+              type="number" 
+              placeholder="R$ 1.000.000,00"
+              value={maxValor}
+              onChange={(e) => setMaxValor(e.target.value)}
+              className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
+            />
+          </div>
+        </div>
+      )}
 
       <div className="relative mb-6">
         <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />

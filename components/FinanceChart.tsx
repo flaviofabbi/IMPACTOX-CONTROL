@@ -17,13 +17,22 @@ interface ChartDataPoint {
 
 interface FinanceChartProps {
   data: ChartDataPoint[];
+  onClick?: (data: any) => void;
 }
 
-const FinanceChart: React.FC<FinanceChartProps> = ({ data }) => {
+const FinanceChart: React.FC<FinanceChartProps> = ({ data, onClick }) => {
   return (
     <div className="w-full h-[300px]">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data}>
+        <AreaChart 
+          data={data}
+          onClick={(e) => {
+            if (onClick && e && e.activePayload && e.activePayload.length > 0) {
+              onClick(e.activePayload[0].payload);
+            }
+          }}
+          style={{ cursor: onClick ? 'pointer' : 'default' }}
+        >
           <defs>
             <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3}/>

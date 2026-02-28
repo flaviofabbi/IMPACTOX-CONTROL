@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Empreendimento } from '../types';
 import { Briefcase, User, ChevronRight, Plus, Calendar, MoreVertical, Trash2, Edit, X, Save, Pencil } from 'lucide-react';
 
@@ -14,6 +14,17 @@ interface Props {
 const PlantoesScreen: React.FC<Props> = ({ empreendimentos, onAddRequest, onDelete, onUpdate, logoUrl }) => {
   const [showOptions, setShowOptions] = useState<string | number | null>(null);
   const [editingItem, setEditingItem] = useState<Empreendimento | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'ativo' | 'inativo'>('all');
+
+  const filteredItems = useMemo(() => {
+    return empreendimentos.filter(e => {
+      const matchesSearch = e.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           e.responsavel.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || e.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [empreendimentos, searchTerm, statusFilter]);
 
   const handleEditClick = (item: Empreendimento) => {
     setEditingItem(item);
@@ -51,15 +62,32 @@ const PlantoesScreen: React.FC<Props> = ({ empreendimentos, onAddRequest, onDele
         </button>
       </div>
 
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div className="flex-1 relative">
+          <input 
+            type="text" 
+            placeholder="Buscar empreendimento ou responsável..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-5 py-3 text-white text-xs focus:ring-2 focus:ring-sky-500 outline-none transition-all"
+          />
+        </div>
+        <div className="flex bg-slate-950/80 p-1.5 rounded-2xl border border-slate-800 shadow-xl">
+          <button onClick={() => setStatusFilter('all')} className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${statusFilter === 'all' ? 'bg-sky-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>Todos</button>
+          <button onClick={() => setStatusFilter('ativo')} className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${statusFilter === 'ativo' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-emerald-400'}`}>Ativos</button>
+          <button onClick={() => setStatusFilter('inativo')} className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${statusFilter === 'inativo' ? 'bg-slate-700 text-white shadow-lg' : 'text-slate-500 hover:text-slate-400'}`}>Inativos</button>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {empreendimentos.map((e) => (
+        {filteredItems.map((e) => (
           <div key={e.id} className="bg-slate-900 rounded-[2.5rem] p-6 shadow-sm border border-slate-800 hover:border-sky-500/30 transition-all group relative">
             <div className="flex justify-between items-start mb-6">
-              <div className={`p-3 rounded-2xl ${e.status === 'concluido' ? 'bg-slate-800' : 'bg-sky-500/10'} text-sky-400`}>
+              <div className={`p-3 rounded-2xl ${e.status === 'inativo' ? 'bg-slate-800' : 'bg-sky-500/10'} text-sky-400`}>
                 <Briefcase size={24} />
               </div>
               <div className="flex items-center gap-2">
-                <span className={`text-[10px] font-black tracking-widest px-3 py-1 rounded-full uppercase ${e.status === 'concluido' ? 'bg-slate-800 text-slate-400' : 'bg-sky-500/10 text-sky-400 border border-sky-500/20'}`}>
+                <span className={`text-[10px] font-black tracking-widest px-3 py-1 rounded-full uppercase ${e.status === 'inativo' ? 'bg-slate-800 text-slate-400' : 'bg-sky-500/10 text-sky-400 border border-sky-500/20'}`}>
                   {e.status}
                 </span>
                 
@@ -91,7 +119,7 @@ const PlantoesScreen: React.FC<Props> = ({ empreendimentos, onAddRequest, onDele
                 </div>
                 <div>
                   <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest leading-none">Responsável</p>
-                  <p className="text-sm font-bold text-slate-200 mt-1">{e.profissional}</p>
+                  <p className="text-sm font-bold text-slate-200 mt-1">{e.responsavel}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -99,8 +127,10 @@ const PlantoesScreen: React.FC<Props> = ({ empreendimentos, onAddRequest, onDele
                   <Calendar size={16} className="text-slate-400" />
                 </div>
                 <div>
-                  <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest leading-none">Data Prevista</p>
-                  <p className="text-sm font-bold text-slate-200 mt-1">{new Date(e.data).toLocaleDateString('pt-BR')}</p>
+                  <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest leading-none">Criado em</p>
+                  <p className="text-sm font-bold text-slate-200 mt-1">
+                    {e.createdAt ? new Date(e.createdAt.seconds * 1000).toLocaleDateString('pt-BR') : 'N/A'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -154,21 +184,20 @@ const PlantoesScreen: React.FC<Props> = ({ empreendimentos, onAddRequest, onDele
                 <input 
                   type="text" 
                   className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-5 py-4 text-white text-xs focus:ring-2 focus:ring-sky-500 outline-none transition-all"
-                  value={editingItem.profissional}
-                  onChange={(e) => setEditingItem({...editingItem, profissional: e.target.value})}
+                  value={editingItem.responsavel}
+                  onChange={(e) => setEditingItem({...editingItem, responsavel: e.target.value})}
                   required
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Data Prevista</label>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Telefone</label>
                   <input 
-                    type="date" 
+                    type="text" 
                     className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-5 py-4 text-white text-xs focus:ring-2 focus:ring-sky-500 outline-none transition-all"
-                    value={editingItem.data}
-                    onChange={(e) => setEditingItem({...editingItem, data: e.target.value})}
-                    required
+                    value={editingItem.telefone}
+                    onChange={(e) => setEditingItem({...editingItem, telefone: e.target.value})}
                   />
                 </div>
                 <div>
@@ -178,8 +207,8 @@ const PlantoesScreen: React.FC<Props> = ({ empreendimentos, onAddRequest, onDele
                     value={editingItem.status}
                     onChange={(e) => setEditingItem({...editingItem, status: e.target.value as any})}
                   >
-                    <option value="agendado">Agendado</option>
-                    <option value="concluido">Concluido</option>
+                    <option value="ativo">Ativo</option>
+                    <option value="inativo">Inativo</option>
                   </select>
                 </div>
               </div>

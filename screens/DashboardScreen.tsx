@@ -87,10 +87,25 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
       d.setMonth(d.getMonth() - (5 - i));
       const monthName = d.toLocaleString('pt-BR', { month: 'short' }).toUpperCase();
       
-      // Better simulation for trend if no real historical data exists
-      const baseMargin = filtered.reduce((acc, curr) => acc + (Number(curr.margem) || 0), 0);
-      const factor = 0.6 + (i * 0.08); // 0.6, 0.68, 0.76, 0.84, 0.92, 1.0
-      const margin = (baseMargin / (filtered.length || 1)) * (i + 1) * factor;
+      // Real data if available, otherwise simulation
+      const monthIndex = d.getMonth();
+      const year = d.getFullYear();
+      
+      const realData = filtered.filter(c => {
+        if (!c.dataInicio) return false;
+        const start = new Date(c.dataInicio);
+        return start.getMonth() === monthIndex && start.getFullYear() === year;
+      });
+
+      let margin = 0;
+      if (realData.length > 0) {
+        margin = realData.reduce((acc, curr) => acc + (Number(curr.margem) || 0), 0);
+      } else {
+        // Better simulation for trend if no real historical data exists
+        const baseMargin = filtered.reduce((acc, curr) => acc + (Number(curr.margem) || 0), 0);
+        const factor = 0.6 + (i * 0.08); // 0.6, 0.68, 0.76, 0.84, 0.92, 1.0
+        margin = (baseMargin / (filtered.length || 1)) * (i + 1) * factor;
+      }
       
       return { label: monthName, value: Number(margin) || 0 };
     });
@@ -239,7 +254,14 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
           </div>
           <div className="h-[300px] w-full">
             {stats.monthlyMargin.length > 0 ? (
-              <FinanceChart data={stats.monthlyMargin} />
+              <FinanceChart 
+                data={stats.monthlyMargin} 
+                onClick={(data) => {
+                  if (data && data.label) {
+                    alert(`Margem em ${data.label}: ${formatCurrency(data.value)}`);
+                  }
+                }}
+              />
             ) : (
               <div className="h-full w-full flex items-center justify-center text-slate-500 text-[10px] font-black uppercase tracking-widest">Sem dados históricos</div>
             )}
@@ -272,7 +294,19 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
                     contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', border: '1px solid #1e293b' }}
                     formatter={(value: number) => [formatCurrency(value), 'Margem']}
                   />
-                  <Bar dataKey="margem" fill="#0ea5e9" radius={[0, 8, 8, 0]} barSize={20} />
+                  <Bar 
+                    dataKey="margem" 
+                    fill="#0ea5e9" 
+                    radius={[0, 8, 8, 0]} 
+                    barSize={20} 
+                    onClick={(data) => {
+                      if (data && data.name) {
+                        const emp = stats.empreendimentosUnicos.find(e => e.nome === data.name);
+                        if (emp) setFilterEmp(String(emp.id));
+                      }
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
