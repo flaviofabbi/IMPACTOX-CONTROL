@@ -27,6 +27,14 @@ body {
   .x-glass {
     @apply bg-slate-900/60 backdrop-blur-xl border border-sky-500/10;
   }
+
+  .x-glow {
+    box-shadow: 0 0 20px -5px rgba(14, 165, 233, 0.1);
+  }
+
+  .x-glow:hover {
+    box-shadow: 0 0 30px -5px rgba(14, 165, 233, 0.2);
+  }
   
   .custom-scrollbar::-webkit-scrollbar {
     width: 4px;
