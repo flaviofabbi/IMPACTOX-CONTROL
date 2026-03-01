@@ -35,6 +35,7 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, ini
     dataInicio: new Date().toISOString().split('T')[0],
     tempoContrato: 12, // meses padrão
     dataTermino: '',
+    renovado: false,
     logradouro: '',
     numero: '',
     bairro: '',
@@ -166,6 +167,7 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, ini
         dataInicio: initialData.dataInicio,
         tempoContrato: initialData.tempoContrato,
         dataTermino: initialData.dataTermino,
+        renovado: initialData.renovado || false,
         logradouro: initialData.logradouro || '',
         numero: initialData.numero || '',
         bairro: initialData.bairro || '',
@@ -215,6 +217,7 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, ini
       dataInicio: formData.dataInicio,
       tempoContrato: formData.tempoContrato,
       dataTermino: formData.dataTermino,
+      renovado: formData.renovado,
       logradouro: formData.logradouro,
       numero: formData.numero,
       bairro: formData.bairro,
@@ -537,6 +540,19 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, ini
                   value={formData.dataTermino}
                 />
               </div>
+            </div>
+
+            <div className="md:col-span-3 flex items-center gap-3 bg-slate-950/30 p-4 rounded-2xl border border-sky-500/5">
+              <input 
+                type="checkbox"
+                id="renovado"
+                className="w-5 h-5 rounded bg-slate-900 border-sky-500/20 text-sky-500 focus:ring-sky-500/20 cursor-pointer"
+                checked={formData.renovado}
+                onChange={(e) => setFormData({...formData, renovado: e.target.checked})}
+              />
+              <label htmlFor="renovado" className="text-[10px] font-black text-slate-300 uppercase tracking-widest cursor-pointer select-none">
+                Contrato Renovado / Prorrogado
+              </label>
             </div>
 
             <div className="md:col-span-3">

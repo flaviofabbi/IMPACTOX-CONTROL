@@ -56,14 +56,19 @@ const FinanceChart: React.FC<FinanceChartProps> = ({ data, onClick }) => {
           <Tooltip 
             contentStyle={{ 
               backgroundColor: '#0f172a',
-              borderRadius: '12px', 
-              border: '1px solid #1e293b', 
-              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
-              padding: '12px',
-              color: '#fff'
+              borderRadius: '16px', 
+              border: '1px solid #334155', 
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+              padding: '12px 16px',
+              color: '#fff',
+              fontSize: '11px',
+              fontWeight: 'bold',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em'
             }}
-            itemStyle={{ color: '#0ea5e9' }}
-            formatter={(value: number) => [value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), 'Valor']}
+            itemStyle={{ color: '#0ea5e9', padding: '4px 0' }}
+            formatter={(value: number) => [value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), 'Margem de Lucro']}
+            cursor={{ stroke: '#0ea5e9', strokeWidth: 1, strokeDasharray: '5 5' }}
           />
           <Area 
             type="monotone" 

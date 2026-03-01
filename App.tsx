@@ -6,6 +6,7 @@ import CapitacoesScreen from './screens/CapitacoesScreen';
 import PlantoesScreen from './screens/PlantoesScreen';
 import NovaCapitacaoScreen from './screens/NovaCapitacaoScreen';
 import NovoEmpreendimentoScreen from './screens/NovoEmpreendimentoScreen';
+import RelatoriosScreen from './screens/RelatoriosScreen';
 import ConfiguracoesScreen from './screens/ConfiguracoesScreen';
 import LoginScreen from './screens/LoginScreen';
 import { db } from './lib/database';
@@ -379,6 +380,14 @@ const App: React.FC = () => {
             await db.empreendimentos.save(u); 
             await refreshData(); 
           }}
+        />
+      )}
+
+      {activeTab === 'Relatórios' && (
+        <RelatoriosScreen 
+          capitacoes={capitacoes}
+          empreendimentos={empreendimentos}
+          logoUrl={logoUrl}
         />
       )}
 

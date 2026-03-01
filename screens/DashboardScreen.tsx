@@ -18,7 +18,8 @@ import {
   PieChart as PieChartIcon,
   BarChart as BarChartIcon,
   ArrowRight,
-  Plus
+  Plus,
+  Database
 } from 'lucide-react';
 import { 
   PieChart, 
@@ -33,6 +34,8 @@ import {
   ResponsiveContainer,
   Legend
 } from 'recharts';
+import { exportToExcel, exportElementToPDF } from '../src/utils/exportUtils';
+import { FileSpreadsheet, FileText, Download } from 'lucide-react';
 
 interface Props {
   capitacoes: Capitacao[];
@@ -190,8 +193,38 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
     return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
 
+  const handleExportExcel = () => {
+    const exportData = stats.displayData.map(p => ({
+      Nome: p.nome,
+      CNPJ: p.cnpj,
+      Empreendimento: p.empreendimentoNome,
+      'Valor Contratado': p.valorContratado,
+      'Valor Repassado': p.valorRepassado,
+      Margem: p.margem,
+      Status: p.status,
+      'Data Término': p.dataTermino
+    }));
+    exportToExcel(exportData, `Relatorio_Financeiro_${new Date().toISOString().split('T')[0]}`, 'Dashboard');
+  };
+
+  const handleExportPDF = () => {
+    exportElementToPDF('dashboard-content', `Dashboard_ImpactoX_${new Date().toISOString().split('T')[0]}`, 'Relatório Executivo Impacto X');
+  };
+
+  const handleExportEvolucaoExcel = () => {
+    const exportData = stats.monthlyMargin.map(m => ({
+      Mês: m.label,
+      Margem: m.value
+    }));
+    exportToExcel(exportData, `Evolucao_Margem_${new Date().toISOString().split('T')[0]}`, 'Evolução');
+  };
+
+  const handleExportEvolucaoPDF = () => {
+    exportElementToPDF('evolucao-margem-chart', `Evolucao_Margem_${new Date().toISOString().split('T')[0]}`, 'Análise de Evolução de Margem');
+  };
+
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500" id="dashboard-content">
       <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h2 className="text-2xl md:text-3xl font-black text-white tracking-tighter uppercase italic">
@@ -202,6 +235,24 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
           </p>
         </div>
         <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 mr-4">
+            <button 
+              onClick={handleExportExcel}
+              className="p-2.5 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white border border-emerald-500/20 rounded-xl transition-all active:scale-90 flex items-center gap-2 text-[8px] font-black uppercase tracking-widest"
+              title="Exportar Excel"
+            >
+              <FileSpreadsheet size={14} />
+              XLSX
+            </button>
+            <button 
+              onClick={handleExportPDF}
+              className="p-2.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white border border-rose-500/20 rounded-xl transition-all active:scale-90 flex items-center gap-2 text-[8px] font-black uppercase tracking-widest"
+              title="Exportar PDF"
+            >
+              <FileText size={14} />
+              PDF
+            </button>
+          </div>
           <div className="flex flex-col items-end">
             <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Status do Sistema</p>
             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border ${isSyncing ? 'bg-amber-500/5 border-amber-500/20 text-amber-400' : 'bg-sky-500/5 border-sky-500/20 text-sky-400'}`}>
@@ -269,7 +320,7 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        <div className="x-glass p-8 rounded-[3rem] border border-sky-500/10 h-full x-glow">
+        <div className="x-glass p-8 rounded-[3rem] border border-sky-500/10 h-full x-glow" id="evolucao-margem-chart">
           <div className="flex items-center justify-between mb-8">
             <div>
               <h3 className="text-base font-black text-white uppercase tracking-tighter flex items-center gap-2">
@@ -277,6 +328,22 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
                 Evolução de Margem
               </h3>
               <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-1">Análise histórica dos últimos 6 meses</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={handleExportEvolucaoExcel}
+                className="p-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white border border-emerald-500/20 rounded-lg transition-all active:scale-90"
+                title="Exportar Dados (Excel)"
+              >
+                <FileSpreadsheet size={12} />
+              </button>
+              <button 
+                onClick={handleExportEvolucaoPDF}
+                className="p-2 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white border border-rose-500/20 rounded-lg transition-all active:scale-90"
+                title="Exportar Gráfico (PDF)"
+              >
+                <FileText size={12} />
+              </button>
             </div>
           </div>
           <div className="h-[320px] w-full">
@@ -488,6 +555,18 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
           <div>
             <h3 className="text-base font-black text-white uppercase tracking-tighter mb-6">Ações Rápidas</h3>
             <div className="space-y-4">
+              <button 
+                onClick={() => onNavigate('Relatórios')}
+                className="w-full p-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-[1.5rem] flex items-center justify-between group transition-all shadow-xl shadow-indigo-900/20 active:scale-95"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="p-2 bg-white/10 rounded-lg">
+                    <Database size={20} />
+                  </div>
+                  <span className="text-[11px] font-black uppercase tracking-widest">Relatórios</span>
+                </div>
+                <ArrowRight size={16} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all" />
+              </button>
               <button 
                 onClick={() => onNavigate('NovaCapitacao')}
                 className="w-full p-5 bg-sky-600 hover:bg-sky-500 text-white rounded-[1.5rem] flex items-center justify-between group transition-all shadow-xl shadow-sky-900/20 active:scale-95"

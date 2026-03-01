@@ -1,7 +1,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { Capitacao, Empreendimento } from '../types';
-import { Search, Trash2, Hash, Briefcase, CheckCircle, CircleX, Filter, Activity, Pencil, Calendar, Send } from 'lucide-react';
+import { Search, Trash2, Hash, Briefcase, CheckCircle, CircleX, Filter, Activity, Pencil, Calendar, Send, FileSpreadsheet, FileText } from 'lucide-react';
+import { exportToExcel, exportTableToPDF } from '../src/utils/exportUtils';
 
 interface Props {
   capitacoes: Capitacao[];
@@ -17,6 +18,9 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDele
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'ativo' | 'vencendo' | 'vencido' | 'inativo'>('all');
   const [empFilter, setEmpFilter] = useState<string>('all');
+  const [tipoEmpFilter, setTipoEmpFilter] = useState<string>('all');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
   const [minValor, setMinValor] = useState<string>('');
   const [maxValor, setMaxValor] = useState<string>('');
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -29,13 +33,19 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDele
       const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
       const matchesEmp = empFilter === 'all' || String(item.empreendimentoId) === empFilter;
       
+      const emp = empreendimentos.find(e => String(e.id) === String(item.empreendimentoId));
+      const matchesTipo = tipoEmpFilter === 'all' || (emp && emp.tipo === tipoEmpFilter);
+
+      const matchesDate = (startDate === '' || item.dataTermino >= startDate) && 
+                         (endDate === '' || item.dataTermino <= endDate);
+      
       const val = Number(item.valorContratado) || 0;
       const matchesMin = minValor === '' || val >= Number(minValor);
       const matchesMax = maxValor === '' || val <= Number(maxValor);
 
-      return matchesSearch && matchesStatus && matchesEmp && matchesMin && matchesMax;
+      return matchesSearch && matchesStatus && matchesEmp && matchesTipo && matchesDate && matchesMin && matchesMax;
     });
-  }, [capitacoes, searchTerm, statusFilter, empFilter, minValor, maxValor]);
+  }, [capitacoes, empreendimentos, searchTerm, statusFilter, empFilter, tipoEmpFilter, startDate, endDate, minValor, maxValor]);
 
   const hasInactive = useMemo(() => {
     return capitacoes.some(c => c.status === 'inativo');
@@ -43,6 +53,33 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDele
 
   const formatCurrency = (value: number) => {
     return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
+
+  const handleExportExcel = () => {
+    const exportData = filteredItems.map(item => ({
+      Nome: item.nome,
+      CNPJ: item.cnpj,
+      Empreendimento: item.empreendimentoNome,
+      'Valor Contratado': item.valorContratado,
+      'Valor Repassado': item.valorRepassado,
+      Margem: item.margem,
+      Status: item.status,
+      'Data Término': item.dataTermino
+    }));
+    exportToExcel(exportData, `Capitacoes_${new Date().toISOString().split('T')[0]}`, 'Capitacoes');
+  };
+
+  const handleExportPDF = () => {
+    const headers = ['Nome', 'CNPJ', 'Empreendimento', 'Vencimento', 'Status', 'Margem'];
+    const rows = filteredItems.map(item => [
+      item.nome,
+      item.cnpj,
+      item.empreendimentoNome,
+      item.dataTermino,
+      item.status,
+      formatCurrency(item.margem)
+    ]);
+    exportTableToPDF(headers, rows, `Relatorio_Capitacoes_${new Date().toISOString().split('T')[0]}`, 'Relatório de Pontos de Captação');
   };
 
   return (
@@ -54,7 +91,25 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDele
             <Activity size={12} /> {capitacoes.length} Unidades Mapeadas
           </p>
         </div>
-        <img src={logoUrl} className="w-12 h-12 rounded-xl object-cover border border-sky-500/20 shadow-lg" alt="Logo" />
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={handleExportExcel}
+            className="p-2.5 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white border border-emerald-500/20 rounded-xl transition-all active:scale-90 flex items-center gap-2 text-[8px] font-black uppercase tracking-widest"
+            title="Exportar Excel"
+          >
+            <FileSpreadsheet size={14} />
+            Excel
+          </button>
+          <button 
+            onClick={handleExportPDF}
+            className="p-2.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white border border-rose-500/20 rounded-xl transition-all active:scale-90 flex items-center gap-2 text-[8px] font-black uppercase tracking-widest"
+            title="Exportar PDF"
+          >
+            <FileText size={14} />
+            PDF
+          </button>
+          <img src={logoUrl} className="w-12 h-12 rounded-xl object-cover border border-sky-500/20 shadow-lg ml-2" alt="Logo" />
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
@@ -99,6 +154,40 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDele
                 <option key={emp.id} value={emp.id}>{emp.nome}</option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Tipo de Empreendimento</label>
+            <select 
+              value={tipoEmpFilter}
+              onChange={(e) => setTipoEmpFilter(e.target.value)}
+              className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20 transition-all appearance-none cursor-pointer"
+            >
+              <option value="all">Todos</option>
+              <option value="Residencial">Residencial</option>
+              <option value="Comercial">Comercial</option>
+              <option value="Misto">Misto</option>
+              <option value="Loteamento">Loteamento</option>
+              <option value="Hospitalar">Hospitalar</option>
+              <option value="Outros">Outros</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Vencimento (De)</label>
+            <input 
+              type="date" 
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Vencimento (Até)</label>
+            <input 
+              type="date" 
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
+            />
           </div>
           <div>
             <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Valor Mínimo</label>
@@ -171,6 +260,11 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDele
                     <span className="flex items-center gap-1.5"><Hash size={12} className="text-sky-500/70" /> {item.cnpj}</span>
                     <span className="flex items-center gap-1.5"><Briefcase size={12} className="text-sky-500/70" /> {item.empreendimentoNome}</span>
                     <span className="flex items-center gap-1.5"><Calendar size={12} className="text-sky-500/70" /> {item.dataTermino}</span>
+                    {item.renovado && (
+                      <span className="flex items-center gap-1 px-1.5 py-0.5 bg-sky-500/10 text-sky-400 rounded-lg border border-sky-500/20">
+                        <Activity size={8} /> Renovado
+                      </span>
+                    )}
                     {item.aviso5DiasEnviado && (
                       <span className="flex items-center gap-1 px-1.5 py-0.5 bg-emerald-500/10 text-emerald-500 rounded-lg border border-emerald-500/20">
                         <Send size={8} /> Aviso 5D Enviado

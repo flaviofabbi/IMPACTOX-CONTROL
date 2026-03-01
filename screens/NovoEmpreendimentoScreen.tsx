@@ -15,7 +15,8 @@ const NovoEmpreendimentoScreen: React.FC<Props> = ({ onSave, onCancel, logoUrl }
     responsavel: '',
     telefone: '',
     email: '',
-    status: 'ativo' as 'ativo' | 'inativo'
+    status: 'ativo' as 'ativo' | 'inativo',
+    tipo: 'Residencial' as 'Residencial' | 'Comercial' | 'Misto' | 'Loteamento' | 'Hospitalar' | 'Outros'
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -102,16 +103,33 @@ const NovoEmpreendimentoScreen: React.FC<Props> = ({ onSave, onCancel, logoUrl }
             </div>
           </div>
 
-          <div>
-            <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Status</label>
-            <select 
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs outline-none appearance-none cursor-pointer"
-              value={formData.status}
-              onChange={(e) => setFormData({...formData, status: e.target.value as any})}
-            >
-              <option value="ativo">Ativo</option>
-              <option value="inativo">Inativo</option>
-            </select>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Status</label>
+              <select 
+                className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs outline-none appearance-none cursor-pointer"
+                value={formData.status}
+                onChange={(e) => setFormData({...formData, status: e.target.value as any})}
+              >
+                <option value="ativo">Ativo</option>
+                <option value="inativo">Inativo</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Tipo</label>
+              <select 
+                className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs outline-none appearance-none cursor-pointer"
+                value={formData.tipo}
+                onChange={(e) => setFormData({...formData, tipo: e.target.value as any})}
+              >
+                <option value="Residencial">Residencial</option>
+                <option value="Comercial">Comercial</option>
+                <option value="Misto">Misto</option>
+                <option value="Loteamento">Loteamento</option>
+                <option value="Hospitalar">Hospitalar</option>
+                <option value="Outros">Outros</option>
+              </select>
+            </div>
           </div>
         </div>
 

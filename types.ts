@@ -35,6 +35,7 @@ export interface Capitacao {
   tempoContrato: number; // meses
   dataTermino: string;
   aviso5DiasEnviado?: boolean;
+  renovado?: boolean;
   userId?: string;
   createdAt?: any;
   // Campos de endereço detalhados (mantidos para compatibilidade)
@@ -53,8 +54,9 @@ export interface Empreendimento {
   telefone: string;
   email: string;
   status: 'ativo' | 'inativo';
+  tipo?: 'Residencial' | 'Comercial' | 'Misto' | 'Loteamento' | 'Hospitalar' | 'Outros';
   userId?: string;
   createdAt?: any;
 }
 
-export type AppTab = 'Dashboard' | 'Capitações' | 'Empreendimentos' | 'Novo' | 'Config';
+export type AppTab = 'Dashboard' | 'Capitações' | 'Empreendimentos' | 'Relatórios' | 'Novo' | 'Config';

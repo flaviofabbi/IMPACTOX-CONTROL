@@ -23,6 +23,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, logoU
     { name: 'Dashboard' as AppTab, icon: LayoutDashboard },
     { name: 'Capitações' as AppTab, icon: Users },
     { name: 'Empreendimentos' as AppTab, icon: Briefcase },
+    { name: 'Relatórios' as AppTab, icon: Database },
     { name: 'Novo' as AppTab, icon: PlusCircle },
     { name: 'Config' as AppTab, icon: Settings },
   ];
