@@ -243,7 +243,7 @@ const ConfiguracoesScreen: React.FC<Props> = ({
                   Alterar Logotipo
                 </button>
                 <button 
-                  onClick={() => onLogoChange("https://picsum.photos/seed/impacto-x/400/400")}
+                  onClick={() => onLogoChange("/assets/logo.png")}
                   className="px-4 py-3 bg-slate-950 border border-slate-800 text-slate-500 hover:text-rose-400 text-[8px] font-black uppercase tracking-widest rounded-xl transition-all"
                 >
                   Reset

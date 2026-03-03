@@ -71,11 +71,11 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, logoU
   return (
     <div className="h-screen w-screen bg-[#000000] flex flex-col md:flex-row overflow-hidden text-slate-100 relative">
       {/* Watermark Logo */}
-      <div className="fixed inset-0 pointer-events-none flex items-center justify-center opacity-[0.03] z-0 overflow-hidden">
+      <div className="fixed inset-0 pointer-events-none flex items-center justify-center opacity-[0.05] z-0 overflow-hidden">
         <img 
           src={logoUrl} 
           alt="Watermark" 
-          className="w-[80vw] h-[80vw] object-contain grayscale rotate-[-15deg] scale-125"
+          className="w-[80vw] h-[80vw] object-contain grayscale rotate-[-15deg] scale-125 brightness-200"
           referrerPolicy="no-referrer"
         />
       </div>
@@ -229,7 +229,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, logoU
         <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
           <img 
             src={logoUrl} 
-            className="w-[85%] md:w-[65%] opacity-[0.12] brightness-125 blur-[0.3px] transform -rotate-12 select-none mix-blend-screen" 
+            className="w-[85%] md:w-[65%] opacity-[0.15] brightness-150 blur-[0.2px] transform -rotate-12 select-none mix-blend-screen" 
             alt="Central Watermark" 
           />
         </div>

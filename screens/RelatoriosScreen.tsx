@@ -170,7 +170,7 @@ const RelatoriosScreen: React.FC<Props> = ({ capitacoes, empreendimentos, logoUr
            </div>
            <div>
              <p className="text-[10px] font-black text-emerald-100/60 uppercase tracking-widest mb-1">Margem de Lucro Total (Filtro)</p>
-             <h3 className="text-4xl font-black text-white italic tracking-tighter">{formatCurrency(totals.margem)}</h3>
+             <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-white italic tracking-tighter">{formatCurrency(totals.margem)}</h3>
            </div>
            <div className="mt-8 flex items-center gap-4">
              <div className="px-4 py-2 bg-white/10 rounded-xl backdrop-blur-md border border-white/10">
@@ -192,7 +192,7 @@ const RelatoriosScreen: React.FC<Props> = ({ capitacoes, empreendimentos, logoUr
           </div>
           <div>
             <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Total Contratado</p>
-            <p className="text-xl font-black text-white italic">{formatCurrency(totals.contratado)}</p>
+            <p className="text-base md:text-lg lg:text-xl font-black text-white italic truncate">{formatCurrency(totals.contratado)}</p>
           </div>
         </div>
 

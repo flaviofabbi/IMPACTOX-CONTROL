@@ -20,6 +20,14 @@ interface StatusPieChartProps {
 }
 
 const StatusPieChart: React.FC<StatusPieChartProps> = ({ data }) => {
+  if (!data || data.length === 0) {
+    return (
+      <div className="w-full h-[300px] flex items-center justify-center text-slate-500 text-[10px] font-black uppercase tracking-widest border border-dashed border-slate-800 rounded-[2rem]">
+        Aguardando dados...
+      </div>
+    );
+  }
+
   const total = data.reduce((acc, curr) => acc + curr.value, 0);
 
   const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }: any) => {
@@ -36,7 +44,11 @@ const StatusPieChart: React.FC<StatusPieChartProps> = ({ data }) => {
   };
 
   return (
-    <div className="w-full h-[200px]">
+    <div className="w-full h-[300px] min-h-[300px] relative">
+      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-8">
+        <span className="text-2xl font-black text-white">{total}</span>
+        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Total</span>
+      </div>
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
@@ -45,8 +57,9 @@ const StatusPieChart: React.FC<StatusPieChartProps> = ({ data }) => {
             cy="50%"
             labelLine={false}
             label={renderCustomizedLabel}
-            outerRadius={70}
-            innerRadius={40}
+            outerRadius={95}
+            innerRadius={70}
+            paddingAngle={8}
             fill="#8884d8"
             dataKey="value"
             stroke="none"
@@ -63,7 +76,7 @@ const StatusPieChart: React.FC<StatusPieChartProps> = ({ data }) => {
               boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
               padding: '12px 16px',
               color: '#fff',
-              fontSize: '11px',
+              fontSize: '10px',
               fontWeight: 'bold',
               textTransform: 'uppercase',
               letterSpacing: '0.05em'

@@ -65,11 +65,11 @@ const LoginScreen: React.FC<Props> = ({ systemName, logoUrl, onLogin }) => {
   return (
     <div className="fixed inset-0 bg-[#020617] z-[200] flex flex-col items-center justify-center p-6 md:p-8 overflow-hidden">
       {/* Corner Watermarks */}
-      <div className="absolute top-10 left-10 opacity-5 pointer-events-none hidden lg:block">
-        <img src={logoUrl} className="w-32 h-32 object-contain grayscale" alt="Watermark" />
+      <div className="absolute top-10 left-10 opacity-10 pointer-events-none hidden lg:block">
+        <img src={logoUrl} className="w-40 h-40 object-contain grayscale brightness-200" alt="Watermark" />
       </div>
-      <div className="absolute bottom-10 right-10 opacity-5 pointer-events-none hidden lg:block">
-        <img src={logoUrl} className="w-32 h-32 object-contain grayscale" alt="Watermark" />
+      <div className="absolute bottom-10 right-10 opacity-10 pointer-events-none hidden lg:block">
+        <img src={logoUrl} className="w-40 h-40 object-contain grayscale brightness-200" alt="Watermark" />
       </div>
 
       <div className="w-full max-w-md text-center mb-8 animate-in fade-in zoom-in duration-700">

@@ -158,6 +158,10 @@ export const db = {
     signup: async (email: string, pass: string) => {
       return await createUserWithEmailAndPassword(auth, email, pass);
     },
+    loginAnonymously: async () => {
+      const { signInAnonymously } = await import('firebase/auth');
+      return await signInAnonymously(auth);
+    },
     logout: async () => {
       await signOut(auth);
     },

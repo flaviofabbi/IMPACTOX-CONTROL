@@ -17,7 +17,7 @@ const App: React.FC = () => {
   const [editingCapitacao, setEditingCapitacao] = useState<Capitacao | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   
-  const [logoUrl, setLogoUrl] = useState("https://picsum.photos/seed/impacto-x-neon/800/800");
+  const [logoUrl, setLogoUrl] = useState("/assets/logo.png");
   const [systemName, setSystemName] = useState('Impacto X');
 
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
@@ -42,60 +42,25 @@ const App: React.FC = () => {
         console.warn("Initialization timed out, forcing login screen");
         setIsInitializing(false);
       }
-    }, 5000);
-
-    let unsubCaps: (() => void) | null = null;
-    let unsubEmps: (() => void) | null = null;
-    let unsubPresence: (() => void) | null = null;
-    let unsubSettings: (() => void) | null = null;
+    }, 8000);
 
     const unsubscribeAuth = db.auth.onAuthStateChanged(async (user) => {
       try {
-        // Cleanup previous subs if any
-        if (unsubCaps) unsubCaps();
-        if (unsubEmps) unsubEmps();
-        if (unsubPresence) unsubPresence();
-        if (unsubSettings) unsubSettings();
-
         if (user) {
           let profile = await db.users.getProfile(user.uid);
           if (!profile) {
             profile = {
               id: user.uid,
-              nome: user.displayName || user.email?.split('@')[0] || 'Operador',
-              email: user.email || '',
-              cargo: 'Operador',
+              nome: user.isAnonymous ? 'Visitante' : (user.displayName || user.email?.split('@')[0] || 'Operador'),
+              email: user.email || 'anonimo@impactox.com',
+              cargo: user.isAnonymous ? 'Convidado' : 'Operador',
               avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${user.uid}`,
               cor: 'from-sky-500 to-blue-700'
             };
             await db.users.setProfile(user.uid, profile);
           }
           setCurrentUser(profile);
-          
-          // Update Presence
           await db.users.updatePresence(user.uid, true);
-          
-          // Real-time subscriptions (Shared)
-          unsubCaps = db.capitacoes.subscribe((items) => {
-            setCapitacoes(items);
-          });
-          unsubEmps = db.empreendimentos.subscribe((items) => {
-            setEmpreendimentos(items);
-          });
-          
-          // Settings subscription
-          unsubSettings = db.settings.subscribe((data) => {
-            if (data.systemName) setSystemName(data.systemName);
-            if (data.logoUrl) setLogoUrl(data.logoUrl);
-          });
-          
-          // Presence subscription
-          unsubPresence = db.users.subscribePresence((activeUsers) => {
-            setOnlineUsersCount(activeUsers.length);
-          });
-          
-          // Users list
-          db.users.getAll().then(setUsers).catch(console.error);
         } else {
           setCurrentUser(null);
           setCapitacoes([]);
@@ -103,13 +68,44 @@ const App: React.FC = () => {
         }
       } catch (err) {
         console.error("Erro na inicialização de perfil:", err);
-        setCurrentUser(null);
       } finally {
         setIsInitializing(false);
         clearTimeout(timeout);
       }
     });
 
+    return () => {
+      unsubscribeAuth();
+      clearTimeout(timeout);
+    };
+  }, []);
+
+  // Real-time subscriptions effect
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const unsubCaps = db.capitacoes.subscribe((items) => setCapitacoes(items));
+    const unsubEmps = db.empreendimentos.subscribe((items) => setEmpreendimentos(items));
+    const unsubSettings = db.settings.subscribe((data) => {
+      if (data.systemName) setSystemName(data.systemName);
+      if (data.logoUrl) setLogoUrl(data.logoUrl);
+    });
+    const unsubPresence = db.users.subscribePresence((activeUsers) => {
+      setOnlineUsersCount(activeUsers.length);
+    });
+
+    // Users list
+    db.users.getAll().then(setUsers).catch(console.error);
+
+    return () => {
+      unsubCaps();
+      unsubEmps();
+      unsubSettings();
+      unsubPresence();
+    };
+  }, [currentUser]);
+
+  useEffect(() => {
     // Handle tab close/refresh to update presence
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden' && currentUserRef.current) {
@@ -119,17 +115,7 @@ const App: React.FC = () => {
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      unsubscribeAuth();
-      if (unsubCaps) unsubCaps();
-      if (unsubEmps) unsubEmps();
-      if (unsubPresence) unsubPresence();
-      if (unsubSettings) unsubSettings();
-      if (currentUserRef.current) db.users.updatePresence(currentUserRef.current.id, false);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      clearTimeout(timeout);
-    };
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
   const refreshData = async () => {
@@ -256,17 +242,16 @@ const App: React.FC = () => {
       <LoginScreen 
         systemName={systemName} 
         logoUrl={logoUrl}
-        onLogin={() => {
-          const guestUser: UserProfile = {
-            id: 'guest_user',
-            nome: 'Usuário Convidado',
-            email: 'guest@impactox.com',
-            cargo: 'Administrador (Demo)',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=guest',
-            cor: 'from-emerald-500 to-teal-700'
-          };
-          setCurrentUser(guestUser);
-          refreshData();
+        onLogin={async () => {
+          try {
+            setIsInitializing(true);
+            await db.auth.loginAnonymously();
+            // App.tsx vai reagir ao onAuthStateChanged
+          } catch (e) {
+            console.error("Erro no login anônimo:", e);
+            alert("Erro ao conectar ao Firebase. Verifique se o login anônimo está ativo no console.");
+            setIsInitializing(false);
+          }
         }} 
       />
     );
