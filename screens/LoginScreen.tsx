@@ -6,7 +6,7 @@ import { Fingerprint, Lock, Mail, User, AlertCircle, Loader2, ChevronRight } fro
 interface Props {
   systemName: string;
   logoUrl: string;
-  onLogin: () => void;
+  onLogin: () => Promise<void> | void;
 }
 
 const getAvatar = (name: string) => 
@@ -27,11 +27,6 @@ const LoginScreen: React.FC<Props> = ({ systemName, logoUrl, onLogin }) => {
     setIsLoading(true);
 
     try {
-      if (password === 'impacto2024') {
-        onLogin();
-        return;
-      }
-
       if (isRegistering) {
         if (!name) throw new Error("Nome é obrigatório");
         const userCredential = await db.auth.signup(email, password);
@@ -53,10 +48,37 @@ const LoginScreen: React.FC<Props> = ({ systemName, logoUrl, onLogin }) => {
       // O App.tsx vai reagir ao onAuthStateChanged
     } catch (err: any) {
       console.error(err);
-      if (err.code === 'auth/wrong-password') setError('Senha incorreta.');
-      else if (err.code === 'auth/user-not-found') setError('Usuário não encontrado.');
-      else if (err.code === 'auth/email-already-in-use') setError('E-mail já cadastrado.');
-      else setError('Falha na autenticação: ' + err.message);
+      if (err.code === 'auth/wrong-password') {
+        setError('Senha incorreta.');
+      } else if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+        setError('E-mail ou senha incorretos. Se for seu primeiro acesso, clique em "Criar acesso" abaixo.');
+      } else if (err.code === 'auth/email-already-in-use') {
+        setError('E-mail já cadastrado. Tente fazer login ou use outro e-mail.');
+      } else if (err.code === 'auth/invalid-email') {
+        setError('E-mail inválido.');
+      } else if (err.code === 'auth/weak-password') {
+        setError('A senha deve ter pelo menos 6 caracteres.');
+      } else if (err.code === 'auth/operation-not-allowed') {
+        setError('O método de login por e-mail/senha não está habilitado no Console do Firebase. Por favor, habilite-o em Authentication > Sign-in method.');
+      } else {
+        setError('Falha na autenticação: ' + (err.message || 'Erro desconhecido'));
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError('Por favor, insira seu e-mail para recuperar a senha.');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await db.auth.resetPassword(email);
+      setError('E-mail de recuperação enviado! Verifique sua caixa de entrada.');
+    } catch (err: any) {
+      setError('Erro ao enviar e-mail: ' + err.message);
     } finally {
       setIsLoading(false);
     }
@@ -73,8 +95,8 @@ const LoginScreen: React.FC<Props> = ({ systemName, logoUrl, onLogin }) => {
       </div>
 
       <div className="w-full max-w-md text-center mb-8 animate-in fade-in zoom-in duration-700">
-        <div className="inline-flex p-1 rounded-full bg-sky-500/10 mb-6 border border-sky-500/20 shadow-[0_0_30px_rgba(14,165,233,0.2)]">
-          <img src={logoUrl} className="w-24 h-24 rounded-full object-cover bg-slate-950" alt="Logo" />
+        <div className="inline-flex mb-6">
+          <img src={logoUrl} className="w-32 h-32 rounded-3xl object-cover" alt="Logo" />
         </div>
         <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">
           {systemName}
@@ -103,7 +125,18 @@ const LoginScreen: React.FC<Props> = ({ systemName, logoUrl, onLogin }) => {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[9px] font-black text-slate-500 uppercase ml-2">Senha</label>
+            <div className="flex justify-between items-center ml-2">
+              <label className="text-[9px] font-black text-slate-500 uppercase">Senha</label>
+              {!isRegistering && (
+                <button 
+                  type="button" 
+                  onClick={handleForgotPassword}
+                  className="text-[8px] font-black text-sky-500 uppercase hover:text-sky-400 transition-colors"
+                >
+                  Esqueceu a senha?
+                </button>
+              )}
+            </div>
             <div className="relative">
               <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
               <input required type="password" placeholder="Mínimo 6 caracteres" className="w-full pl-12 pr-4 py-4 bg-slate-950/50 border border-slate-800 rounded-2xl text-white text-xs outline-none focus:border-sky-500/50" value={password} onChange={e => setPassword(e.target.value)} />
@@ -140,13 +173,31 @@ const LoginScreen: React.FC<Props> = ({ systemName, logoUrl, onLogin }) => {
               
               <button
                 type="button"
-                onClick={() => onLogin()}
-                className="w-full py-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 font-black rounded-2xl transition-all flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest hover:bg-emerald-500 hover:text-white active:scale-95"
+                onClick={async () => {
+                  setIsLoading(true);
+                  try {
+                    await onLogin();
+                  } catch (err: any) {
+                    if (err.code === 'auth/operation-not-allowed') {
+                      setError('O login com Google não está habilitado no Console do Firebase. Por favor, habilite-o em Authentication > Sign-in method.');
+                    } else {
+                      setError('Falha no login com Google: ' + err.message);
+                    }
+                  } finally {
+                    setIsLoading(false);
+                  }
+                }}
+                className="w-full py-4 bg-white text-slate-950 font-black rounded-2xl transition-all flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest hover:bg-slate-100 active:scale-95 cursor-pointer"
               >
-                Entrar sem Login (Modo Demo)
+                {isLoading ? <Loader2 size={18} className="animate-spin text-slate-950" /> : (
+                  <>
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-4 h-4" alt="Google" />
+                    Entrar com Google
+                  </>
+                )}
               </button>
               <p className="text-center text-[7px] text-slate-600 uppercase font-black tracking-widest mt-3">
-                Dica: Use a senha <span className="text-sky-500">impacto2024</span> para bypass
+                Acesso Seguro via Google ou E-mail
               </p>
             </div>
           )}

@@ -19,7 +19,9 @@ import {
   BarChart as BarChartIcon,
   ArrowRight,
   Plus,
-  Database
+  Database,
+  MessageSquare,
+  Check
 } from 'lucide-react';
 import { 
   PieChart, 
@@ -43,29 +45,35 @@ interface Props {
   isSyncing: boolean;
   onNavigate: (tab: string) => void;
   logoUrl: string;
+  onUpdateAviso: (id: string) => Promise<void>;
   onGenerateSampleData?: () => void;
+  onImportFile?: (file: File) => void;
+  whatsappTemplate: string;
 }
 
-const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onNavigate, logoUrl, onGenerateSampleData }) => {
+const DashboardScreen: React.FC<Props> = ({ 
+  capitacoes, onImport, isSyncing, onNavigate, logoUrl, onUpdateAviso, onGenerateSampleData, onImportFile,
+  whatsappTemplate
+}) => {
   const [filterEmp, setFilterEmp] = useState('all');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const stats = useMemo(() => {
     // Ensure capitacoes is an array
-    const safeCapitacoes = Array.isArray(capitacoes) ? capitacoes : Object.values(capitacoes || {});
+    const safeCapitacoes: Capitacao[] = Array.isArray(capitacoes) ? capitacoes : Object.values(capitacoes || {});
     
     const filtered = filterEmp === 'all' 
       ? safeCapitacoes 
-      : safeCapitacoes.filter(c => String(c.empreendimentoId) === String(filterEmp));
+      : safeCapitacoes.filter((c: Capitacao) => String(c.empreendimentoId) === String(filterEmp));
     
-    const totalContratado = filtered.reduce((a, b) => a + (Number(b.valorContratado) || 0), 0);
-    const totalRepassado = filtered.reduce((a, b) => a + (Number(b.valorRepassado) || 0), 0);
-    const totalMargem = filtered.reduce((a, b) => a + (Number(b.margem) || 0), 0);
+    const totalContratado = filtered.reduce((a, b: Capitacao) => a + (Number(b.valorContratado) || 0), 0);
+    const totalRepassado = filtered.reduce((a, b: Capitacao) => a + (Number(b.valorRepassado) || 0), 0);
+    const totalMargem = filtered.reduce((a, b: Capitacao) => a + (Number(b.margem) || 0), 0);
     
-    const ativos = filtered.filter(c => c.status === 'ativo').length;
-    const vencendo = filtered.filter(c => c.status === 'vencendo').length;
-    const vencidos = filtered.filter(c => c.status === 'vencido').length;
-    const inativos = filtered.filter(c => c.status === 'inativo').length;
+    const ativos = filtered.filter((c: Capitacao) => c.status === 'ativo').length;
+    const vencendo = filtered.filter((c: Capitacao) => c.status === 'vencendo').length;
+    const vencidos = filtered.filter((c: Capitacao) => c.status === 'vencido').length;
+    const inativos = filtered.filter((c: Capitacao) => c.status === 'inativo').length;
 
     const statusData = [
       { name: 'Ativos', value: Number(ativos) || 0, color: '#10b981' },
@@ -76,17 +84,17 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
 
     const hasStatusData = statusData.some(d => d.value > 0);
 
-    const empreendimentosUnicos = Array.from(new Set(safeCapitacoes.map(c => JSON.stringify({ id: c.empreendimentoId, nome: c.empreendimentoNome }))))
+    const empreendimentosUnicos = Array.from(new Set(safeCapitacoes.map((c: Capitacao) => JSON.stringify({ id: c.empreendimentoId, nome: c.empreendimentoNome }))))
       .map((s: string) => JSON.parse(s) as { id: string, nome: string })
       .filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
 
     const marginByEmp = empreendimentosUnicos.map(emp => {
-      const empCapitacoes = safeCapitacoes.filter(c => String(c.empreendimentoId) === String(emp.id));
-      const margin = empCapitacoes.reduce((a, b) => a + (Number(b.margem) || 0), 0);
+      const empCapitacoes = safeCapitacoes.filter((c: Capitacao) => String(c.empreendimentoId) === String(emp.id));
+      const margin = empCapitacoes.reduce((a, b: Capitacao) => a + (Number(b.margem) || 0), 0);
       return { name: emp.nome, margem: Number(margin) || 0 };
     }).sort((a, b) => b.margem - a.margem).slice(0, 5);
 
-    const marginByPoint = filtered.map(p => ({
+    const marginByPoint = filtered.map((p: Capitacao) => ({
       name: p.nome,
       margem: Number(p.margem) || 0
     })).sort((a, b) => b.margem - a.margem).slice(0, 10);
@@ -99,7 +107,7 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
       const monthIndex = d.getMonth();
       const year = d.getFullYear();
       
-      const realData = filtered.filter(c => {
+      const realData = filtered.filter((c: Capitacao) => {
         if (!c.dataInicio) return false;
         const start = new Date(c.dataInicio);
         return start.getMonth() === monthIndex && start.getFullYear() === year;
@@ -107,10 +115,10 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
 
       let margin = 0;
       if (realData.length > 0) {
-        margin = realData.reduce((acc, curr) => acc + (Number(curr.margem) || 0), 0);
+        margin = realData.reduce((acc, curr: Capitacao) => acc + (Number(curr.margem) || 0), 0);
       } else {
         // Fallback for demo/empty history
-        const baseMargin = filtered.reduce((acc, curr) => acc + (Number(curr.margem) || 0), 0);
+        const baseMargin = filtered.reduce((acc, curr: Capitacao) => acc + (Number(curr.margem) || 0), 0);
         const factor = 0.6 + (i * 0.08);
         margin = (baseMargin / (filtered.length || 1)) * (i + 1) * factor;
       }
@@ -126,7 +134,7 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
     const hasEvolutionData = monthlyMargin.some(m => m.value > 0);
     const hasMarginData = marginByEmp.some(m => m.margem > 0);
 
-    const globalTotalMargem = safeCapitacoes.reduce((a, b) => a + (Number(b.margem) || 0), 0);
+    const globalTotalMargem = safeCapitacoes.reduce((a, b: Capitacao) => a + (Number(b.margem) || 0), 0);
 
     return {
       totalContratado,
@@ -159,13 +167,17 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
           type="file" 
           ref={fileInputRef} 
           className="hidden" 
-          accept=".json" 
+          accept=".json,.csv" 
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) {
-              const reader = new FileReader();
-              reader.onload = (ev) => onImport(JSON.parse(ev.target?.result as string));
-              reader.readAsText(file);
+              if (onImportFile) {
+                onImportFile(file);
+              } else {
+                const reader = new FileReader();
+                reader.onload = (ev) => onImport(JSON.parse(ev.target?.result as string));
+                reader.readAsText(file);
+              }
             }
             if (e.target) e.target.value = '';
           }} 
@@ -208,7 +220,7 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
   };
 
   const handleExportExcel = () => {
-    const exportData = stats.displayData.map(p => ({
+    const exportData = (stats.displayData as Capitacao[]).map(p => ({
       Nome: p.nome,
       CNPJ: p.cnpj,
       Empreendimento: p.empreendimentoNome,
@@ -276,7 +288,7 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
               </span>
             </div>
           </div>
-          <img src={logoUrl} className="w-12 h-12 md:w-16 md:h-16 rounded-2xl object-cover border border-sky-500/20 shadow-2xl x-glow" alt="Logo" />
+          <img src={logoUrl} className="w-16 h-16 md:w-20 md:h-20 rounded-2xl object-cover" alt="Logo" />
         </div>
       </div>
       
@@ -315,7 +327,7 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4 mb-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
           <StatCard title="Total Contratado" value={formatCurrency(stats.totalContratado)} icon={<DollarSign />} color="bg-sky-600" chartData={stats.contratadoSparkline} trend="+12.5%" trendUp={true} />
         </motion.div>
@@ -678,7 +690,7 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {stats.displayData.filter(p => p.status === 'vencendo' || p.status === 'vencido').map(p => (
+          {(stats.displayData as Capitacao[]).filter(p => p.status === 'vencendo' || p.status === 'vencido').map(p => (
             <div key={p.id} className={`p-5 rounded-[1.5rem] border transition-all hover:scale-[1.02] ${p.status === 'vencido' ? 'bg-rose-500/5 border-rose-500/20' : 'bg-amber-500/5 border-amber-500/20'}`}>
               <div className="flex justify-between items-start mb-3">
                 <h4 className="text-[11px] font-black text-white uppercase truncate flex-1 italic">{p.nome}</h4>
@@ -686,13 +698,66 @@ const DashboardScreen: React.FC<Props> = ({ capitacoes, onImport, isSyncing, onN
                   {p.status}
                 </span>
               </div>
-              <div className="flex items-center gap-2 text-[9px] font-bold text-slate-400 uppercase tracking-tight">
+              <div className="flex items-center gap-2 text-[9px] font-bold text-slate-400 uppercase tracking-tight mb-4">
                 <Calendar size={12} className="text-slate-500" />
                 Término: <span className="text-slate-200 font-mono">{p.dataTermino}</span>
               </div>
+              
+              <div className="flex flex-col gap-2">
+                {p.telefone ? (
+                  <a 
+                    href={`https://api.whatsapp.com/send?phone=${p.telefone.replace(/\D/g, '').startsWith('55') ? p.telefone.replace(/\D/g, '') : '55' + p.telefone.replace(/\D/g, '')}&text=${encodeURIComponent(whatsappTemplate.replace('[nome]', p.nome).replace('[data]', p.dataTermino).replace('[empreendimento]', p.empreendimentoNome))}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 no-underline"
+                    title={`Notificar ${p.nome} via WhatsApp`}
+                  >
+                    <MessageSquare size={14} />
+                    <span className="text-[8px] font-black uppercase tracking-widest">WhatsApp 1</span>
+                  </a>
+                ) : (
+                  <div className="flex-1 py-2 bg-slate-800 text-slate-500 rounded-xl flex items-center justify-center gap-2 cursor-help" title="Telefone 1 não cadastrado">
+                    <AlertCircle size={14} />
+                    <span className="text-[8px] font-black uppercase tracking-widest">Sem Fone 1</span>
+                  </div>
+                )}
+
+                {p.telefone2 && (
+                  <a 
+                    href={`https://api.whatsapp.com/send?phone=${p.telefone2.replace(/\D/g, '').startsWith('55') ? p.telefone2.replace(/\D/g, '') : '55' + p.telefone2.replace(/\D/g, '')}&text=${encodeURIComponent(whatsappTemplate.replace('[nome]', p.nomeResponsavel2 || p.nome).replace('[data]', p.dataTermino).replace('[empreendimento]', p.empreendimentoNome))}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 no-underline"
+                    title={`Notificar ${p.nomeResponsavel2 || 'Responsável 2'} via WhatsApp`}
+                  >
+                    <MessageSquare size={14} />
+                    <span className="text-[8px] font-black uppercase tracking-widest">WhatsApp 2</span>
+                  </a>
+                )}
+                
+                <div className="flex items-center gap-2">
+                  {!p.aviso5DiasEnviado && (
+                    <button 
+                      onClick={() => onUpdateAviso(p.id.toString())}
+                      className="flex-1 py-2 bg-sky-500/10 text-sky-500 hover:bg-sky-500 hover:text-white border border-sky-500/20 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2"
+                      title="Marcar como Notificado"
+                    >
+                      <Check size={14} />
+                      <span className="text-[8px] font-black uppercase tracking-widest">Marcar Notificado</span>
+                    </button>
+                  )}
+                  
+                  {p.aviso5DiasEnviado && (
+                    <div className="flex-1 py-2 bg-emerald-500/20 text-emerald-500 rounded-xl flex items-center justify-center gap-2" title="Notificação Enviada">
+                      <CheckCircle size={14} />
+                      <span className="text-[8px] font-black uppercase tracking-widest">Já Notificado</span>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           ))}
-          {stats.displayData.filter(p => p.status === 'vencendo' || p.status === 'vencido').length === 0 && (
+          {(stats.displayData as Capitacao[]).filter(p => p.status === 'vencendo' || p.status === 'vencido').length === 0 && (
             <div className="col-span-full text-center py-12 opacity-40 grayscale">
               <CheckCircle size={40} className="mx-auto mb-3 text-emerald-500" />
               <p className="text-[11px] font-black uppercase tracking-[0.2em]">Nenhum alerta crítico detectado</p>

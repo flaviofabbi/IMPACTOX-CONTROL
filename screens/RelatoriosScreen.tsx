@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Capitacao, Empreendimento } from '../types';
 import { 
   FileSpreadsheet, 
@@ -11,12 +11,14 @@ import {
   Activity, 
   Calendar,
   ArrowDownToLine,
-  PieChart as PieChartIcon
+  PieChart as PieChartIcon,
+  RotateCcw
 } from 'lucide-react';
 import { exportToExcel, exportTableToPDF } from '../src/utils/exportUtils';
 import FinanceChart from '../components/FinanceChart';
 import CategoryBarChart from '../components/CategoryBarChart';
 import StatusPieChart from '../components/StatusPieChart';
+import { usePersistentFilters } from '../src/hooks/usePersistentFilters';
 
 interface Props {
   capitacoes: Capitacao[];
@@ -26,12 +28,23 @@ interface Props {
 
 const RelatoriosScreen: React.FC<Props> = ({ capitacoes, empreendimentos, logoUrl }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'ativo' | 'vencendo' | 'vencido' | 'inativo'>('all');
-  const [empFilter, setEmpFilter] = useState<string>('all');
-  const [tipoEmpFilter, setTipoEmpFilter] = useState<string>('all');
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
+  
+  const [filters, setFilters, resetFilters] = usePersistentFilters('relatorios_filters', {
+    status: 'all' as 'all' | 'ativo' | 'vencendo' | 'vencido' | 'inativo',
+    empId: 'all',
+    tipoEmp: 'all',
+    startDate: '',
+    endDate: ''
+  });
+
   const [showFilters, setShowFilters] = useState(false);
+
+  // Auto-show filters if any filter is active
+  useEffect(() => {
+    if (filters.status !== 'all' || filters.empId !== 'all' || filters.tipoEmp !== 'all' || filters.startDate || filters.endDate) {
+      setShowFilters(true);
+    }
+  }, []);
 
   const filteredItems = useMemo(() => {
     return capitacoes.filter(item => {
@@ -39,18 +52,18 @@ const RelatoriosScreen: React.FC<Props> = ({ capitacoes, empreendimentos, logoUr
                            item.cnpj.includes(searchTerm) ||
                            item.empreendimentoNome.toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
-      const matchesEmp = empFilter === 'all' || String(item.empreendimentoId) === empFilter;
+      const matchesStatus = filters.status === 'all' || item.status === filters.status;
+      const matchesEmp = filters.empId === 'all' || String(item.empreendimentoId) === filters.empId;
       
       const emp = empreendimentos.find(e => String(e.id) === String(item.empreendimentoId));
-      const matchesTipo = tipoEmpFilter === 'all' || (emp && emp.tipo === tipoEmpFilter);
+      const matchesTipo = filters.tipoEmp === 'all' || (emp && emp.tipo === filters.tipoEmp);
 
-      const matchesDate = (startDate === '' || item.dataTermino >= startDate) && 
-                         (endDate === '' || item.dataTermino <= endDate);
+      const matchesDate = (filters.startDate === '' || item.dataTermino >= filters.startDate) && 
+                         (filters.endDate === '' || item.dataTermino <= filters.endDate);
 
       return matchesSearch && matchesStatus && matchesEmp && matchesTipo && matchesDate;
     });
-  }, [capitacoes, empreendimentos, searchTerm, statusFilter, empFilter, tipoEmpFilter, startDate, endDate]);
+  }, [capitacoes, empreendimentos, searchTerm, filters]);
 
   const totals = useMemo(() => {
     const contratado = filteredItems.reduce((a, b) => a + (Number(b.valorContratado) || 0), 0);
@@ -159,50 +172,50 @@ const RelatoriosScreen: React.FC<Props> = ({ capitacoes, empreendimentos, logoUr
           >
             <FileText size={16} /> Exportar PDF
           </button>
-          <img src={logoUrl} className="w-12 h-12 rounded-xl object-cover border border-sky-500/20 ml-2" alt="Logo" />
+          <img src={logoUrl} className="w-16 h-16 rounded-2xl object-cover ml-2" alt="Logo" />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-        <div className="lg:col-span-2 bg-gradient-to-br from-emerald-600 to-teal-800 border border-emerald-500/20 p-8 rounded-[2.5rem] flex flex-col justify-between shadow-2xl shadow-emerald-900/20 relative overflow-hidden group">
-           <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
-             <TrendingUp size={120} />
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
+        <div className="lg:col-span-2 bg-gradient-to-br from-emerald-600 to-teal-800 border border-emerald-500/20 p-5 md:p-8 rounded-[2rem] md:rounded-[2.5rem] flex flex-col items-center text-center justify-between shadow-2xl shadow-emerald-900/20 relative overflow-hidden group">
+           <div className="absolute top-0 right-0 p-5 md:p-8 opacity-10 group-hover:scale-110 transition-transform">
+             <TrendingUp size={80} className="md:w-[120px] md:h-[120px]" />
            </div>
-           <div>
-             <p className="text-[10px] font-black text-emerald-100/60 uppercase tracking-widest mb-1">Margem de Lucro Total (Filtro)</p>
-             <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-white italic tracking-tighter">{formatCurrency(totals.margem)}</h3>
+           <div className="w-full">
+             <p className="text-[8px] md:text-[10px] font-black text-emerald-100/60 uppercase tracking-widest mb-1">Margem de Lucro Total (Filtro)</p>
+             <h3 className="text-xl md:text-2xl lg:text-4xl font-black text-white italic tracking-tighter break-words">{formatCurrency(totals.margem)}</h3>
            </div>
-           <div className="mt-8 flex items-center gap-4">
-             <div className="px-4 py-2 bg-white/10 rounded-xl backdrop-blur-md border border-white/10">
-               <p className="text-[8px] font-black text-emerald-100 uppercase tracking-widest">Média por Ponto</p>
-               <p className="text-sm font-bold text-white">{formatCurrency(filteredItems.length ? totals.margem / filteredItems.length : 0)}</p>
+           <div className="mt-6 md:mt-8 flex flex-wrap items-center justify-center gap-3 md:gap-4 w-full">
+             <div className="px-3 py-1.5 md:px-4 md:py-2 bg-white/10 rounded-xl backdrop-blur-md border border-white/10">
+               <p className="text-[7px] md:text-[8px] font-black text-emerald-100 uppercase tracking-widest">Média por Ponto</p>
+               <p className="text-xs md:text-sm font-bold text-white">{formatCurrency(filteredItems.length ? totals.margem / filteredItems.length : 0)}</p>
              </div>
-             <div className="px-4 py-2 bg-white/10 rounded-xl backdrop-blur-md border border-white/10">
-               <p className="text-[8px] font-black text-emerald-100 uppercase tracking-widest">ROI Estimado</p>
-               <p className="text-sm font-bold text-white">
+             <div className="px-3 py-1.5 md:px-4 md:py-2 bg-white/10 rounded-xl backdrop-blur-md border border-white/10">
+               <p className="text-[7px] md:text-[8px] font-black text-emerald-100 uppercase tracking-widest">ROI Estimado</p>
+               <p className="text-xs md:text-sm font-bold text-white">
                  {totals.repassado ? ((totals.margem / totals.repassado) * 100).toFixed(1) : 0}%
                </p>
              </div>
            </div>
         </div>
         
-        <div className="bg-slate-900/40 border border-slate-800 p-6 rounded-[2.5rem] flex flex-col justify-center gap-2">
-          <div className="p-3 bg-sky-500/10 text-sky-500 rounded-2xl w-fit">
-            <DollarSign size={24} />
+        <div className="bg-slate-900/40 border border-slate-800 p-5 md:p-6 rounded-[2rem] md:rounded-[2.5rem] flex flex-col items-center text-center justify-center gap-2">
+          <div className="p-2 md:p-3 bg-sky-500/10 text-sky-500 rounded-xl md:rounded-2xl w-fit">
+            <DollarSign size={20} className="md:w-6 md:h-6" />
           </div>
-          <div>
+          <div className="w-full">
             <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Total Contratado</p>
-            <p className="text-base md:text-lg lg:text-xl font-black text-white italic truncate">{formatCurrency(totals.contratado)}</p>
+            <p className="text-sm md:text-base lg:text-xl font-black text-white italic break-words">{formatCurrency(totals.contratado)}</p>
           </div>
         </div>
 
-        <div className="bg-slate-900/40 border border-slate-800 p-6 rounded-[2.5rem] flex flex-col justify-center gap-2">
-          <div className="p-3 bg-indigo-500/10 text-indigo-500 rounded-2xl w-fit">
-            <Activity size={24} />
+        <div className="bg-slate-900/40 border border-slate-800 p-5 md:p-6 rounded-[2rem] md:rounded-[2.5rem] flex flex-col items-center text-center justify-center gap-2">
+          <div className="p-2 md:p-3 bg-indigo-500/10 text-indigo-500 rounded-xl md:rounded-2xl w-fit">
+            <Activity size={20} className="md:w-6 md:h-6" />
           </div>
-          <div>
+          <div className="w-full">
             <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Pontos Ativos</p>
-            <p className="text-xl font-black text-white italic">{filteredItems.length} Unidades</p>
+            <p className="text-sm md:text-base lg:text-xl font-black text-white italic">{filteredItems.length} Unidades</p>
           </div>
         </div>
       </div>
@@ -210,7 +223,7 @@ const RelatoriosScreen: React.FC<Props> = ({ capitacoes, empreendimentos, logoUr
       {filteredItems.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <div className="bg-slate-900/40 border border-slate-800 rounded-[2rem] p-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-center mb-4">
               <div>
                 <h3 className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">
                   <TrendingUp size={14} className="text-emerald-500" />
@@ -218,13 +231,13 @@ const RelatoriosScreen: React.FC<Props> = ({ capitacoes, empreendimentos, logoUr
                 </h3>
               </div>
             </div>
-            <div className="h-[180px]">
+            <div className="h-[220px]">
               <FinanceChart data={chartData} />
             </div>
           </div>
 
           <div className="bg-slate-900/40 border border-slate-800 rounded-[2rem] p-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-center mb-4">
               <div>
                 <h3 className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">
                   <Activity size={14} className="text-sky-500" />
@@ -232,13 +245,13 @@ const RelatoriosScreen: React.FC<Props> = ({ capitacoes, empreendimentos, logoUr
                 </h3>
               </div>
             </div>
-            <div className="h-[180px]">
+            <div className="h-[220px]">
               <CategoryBarChart data={categoryData} />
             </div>
           </div>
 
           <div className="bg-slate-900/40 border border-slate-800 rounded-[2rem] p-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-center mb-4">
               <div>
                 <h3 className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">
                   <PieChartIcon size={14} className="text-purple-500" />
@@ -246,7 +259,7 @@ const RelatoriosScreen: React.FC<Props> = ({ capitacoes, empreendimentos, logoUr
                 </h3>
               </div>
             </div>
-            <div className="h-[180px]">
+            <div className="h-[220px]">
               <StatusPieChart data={statusData} />
             </div>
           </div>
@@ -254,32 +267,41 @@ const RelatoriosScreen: React.FC<Props> = ({ capitacoes, empreendimentos, logoUr
       )}
 
       <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] p-8 mb-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <div className="flex-1 relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-            <input 
-              type="text" 
-              placeholder="Pesquisar por nome, CNPJ ou unidade..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl pl-12 pr-6 py-4 text-white text-xs focus:ring-2 focus:ring-sky-500 outline-none transition-all"
-            />
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+            <div className="flex-1 relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+              <input 
+                type="text" 
+                placeholder="Pesquisar por nome, CNPJ ou unidade..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl pl-12 pr-6 py-4 text-white text-xs focus:ring-2 focus:ring-sky-500 outline-none transition-all"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setShowFilters(!showFilters)}
+                className={`flex items-center gap-2 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${showFilters ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
+              >
+                <Filter size={18} /> Filtros {showFilters ? 'Ativos' : 'Avançados'}
+              </button>
+              <button 
+                onClick={resetFilters}
+                className="p-4 bg-slate-800 text-slate-400 hover:text-rose-400 border border-slate-700 rounded-2xl transition-all active:scale-95"
+                title="Resetar Filtros"
+              >
+                <RotateCcw size={18} />
+              </button>
+            </div>
           </div>
-          <button 
-            onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${showFilters ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
-          >
-            <Filter size={18} /> Filtros {showFilters ? 'Ativos' : 'Avançados'}
-          </button>
-        </div>
 
         {showFilters && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 p-6 bg-slate-950/30 rounded-3xl border border-slate-800 animate-in slide-in-from-top-4 duration-300">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8 p-6 bg-slate-950/30 rounded-3xl border border-slate-800 animate-in slide-in-from-top-4 duration-300">
             <div>
               <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Status</label>
               <select 
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as any)}
+                value={filters.status}
+                onChange={(e) => setFilters({ status: e.target.value as any })}
                 className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20"
               >
                 <option value="all">Todos Status</option>
@@ -292,8 +314,8 @@ const RelatoriosScreen: React.FC<Props> = ({ capitacoes, empreendimentos, logoUr
             <div>
               <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Empreendimento</label>
               <select 
-                value={empFilter}
-                onChange={(e) => setEmpFilter(e.target.value)}
+                value={filters.empId}
+                onChange={(e) => setFilters({ empId: e.target.value })}
                 className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20"
               >
                 <option value="all">Todos</option>
@@ -303,11 +325,27 @@ const RelatoriosScreen: React.FC<Props> = ({ capitacoes, empreendimentos, logoUr
               </select>
             </div>
             <div>
+              <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Tipo</label>
+              <select 
+                value={filters.tipoEmp}
+                onChange={(e) => setFilters({ tipoEmp: e.target.value })}
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20"
+              >
+                <option value="all">Todos Tipos</option>
+                <option value="Residencial">Residencial</option>
+                <option value="Comercial">Comercial</option>
+                <option value="Misto">Misto</option>
+                <option value="Loteamento">Loteamento</option>
+                <option value="Hospitalar">Hospitalar</option>
+                <option value="Outros">Outros</option>
+              </select>
+            </div>
+            <div>
               <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Vencimento (De)</label>
               <input 
                 type="date" 
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                value={filters.startDate}
+                onChange={(e) => setFilters({ startDate: e.target.value })}
                 className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20"
               />
             </div>
@@ -315,8 +353,8 @@ const RelatoriosScreen: React.FC<Props> = ({ capitacoes, empreendimentos, logoUr
               <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Vencimento (Até)</label>
               <input 
                 type="date" 
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
+                value={filters.endDate}
+                onChange={(e) => setFilters({ endDate: e.target.value })}
                 className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20"
               />
             </div>
@@ -328,10 +366,10 @@ const RelatoriosScreen: React.FC<Props> = ({ capitacoes, empreendimentos, logoUr
             <thead>
               <tr className="border-b border-slate-800">
                 <th className="pb-4 px-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Ponto / CNPJ</th>
-                <th className="pb-4 px-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Unidade</th>
+                <th className="pb-4 px-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">Unidade / Categoria</th>
                 <th className="pb-4 px-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Vencimento</th>
                 <th className="pb-4 px-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">Renovado</th>
-                <th className="pb-4 px-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-right">Margem</th>
+                <th className="pb-4 px-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">Margem</th>
                 <th className="pb-4 px-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">Status</th>
               </tr>
             </thead>
@@ -342,7 +380,7 @@ const RelatoriosScreen: React.FC<Props> = ({ capitacoes, empreendimentos, logoUr
                     <p className="text-[11px] font-black text-white uppercase italic">{item.nome}</p>
                     <p className="text-[8px] text-slate-500 font-mono mt-1">{item.cnpj}</p>
                   </td>
-                  <td className="py-5 px-4">
+                  <td className="py-5 px-4 text-center">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{item.empreendimentoNome}</span>
                   </td>
                   <td className="py-5 px-4">
@@ -358,7 +396,7 @@ const RelatoriosScreen: React.FC<Props> = ({ capitacoes, empreendimentos, logoUr
                       <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Não</span>
                     )}
                   </td>
-                  <td className="py-5 px-4 text-right">
+                  <td className="py-5 px-4 text-center">
                     <p className="text-[11px] font-black text-emerald-400 font-mono italic">{formatCurrency(item.margem)}</p>
                     <p className="text-[8px] text-slate-500 font-mono mt-1">{item.percentual?.toFixed(1)}%</p>
                   </td>

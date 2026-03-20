@@ -1,0 +1,140 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - id: string (required)
+    //   - nome: string (required)
+    //   - email: string (required)
+    //   - cargo: string (required)
+    //   - avatar: string (optional)
+    //   - cor: string (optional)
+    //
+    // Collection: capitacoes
+    // Document ID: {capitacaoId}
+    // Fields:
+    //   - userId: string (required)
+    //   - status: string (required)
+    //   - nome: string (required)
+    //   - email: string (optional)
+    //   - telefone: string (optional)
+    //   - empreendimento: string (required)
+    //   - tipoEmpreendimento: string (optional)
+    //   - valor: number (optional)
+    //   - data: string (required)
+    //   - aviso5DiasEnviado: boolean (optional)
+    //
+    // Collection: empreendimentos
+    // Document ID: {empreendimentoId}
+    // Fields:
+    //   - nome: string (required)
+    //   - tipo: string (required)
+    //   - localizacao: string (optional)
+    //
+    // Collection: presence
+    // Document ID: {userId}
+    // Fields:
+    //   - uid: string (required)
+    //   - isOnline: boolean (required)
+    //   - lastSeen: string (required)
+    //
+    // Collection: settings
+    // Document ID: global
+    // Fields:
+    //   - systemName: string (optional)
+    //   - logoUrl: string (optional)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.cargo == 'Admin' ||
+         (request.auth.token.email == "flaviofabbi@gmail.com" && request.auth.token.email_verified == true) ||
+         (request.auth.token.email == "flavio@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return data.nome is string && data.nome.size() > 0 && data.nome.size() < 100 &&
+             data.email is string && data.email.size() > 0 &&
+             data.cargo is string;
+    }
+
+    function isValidCapitacao(data) {
+      return data.nome is string && data.nome.size() > 0 &&
+             data.empreendimento is string &&
+             data.data is string;
+    }
+
+    // ===============================================================
+    // Match Rules
+    // ===============================================================
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isOwner(userId) && isValidUser(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // Capitacoes collection
+    match /capitacoes/{capitacaoId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidCapitacao(request.resource.data);
+      allow update: if isAuthenticated() && isValidCapitacao(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // Empreendimentos collection
+    match /empreendimentos/{empreendimentoId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Presence collection
+    match /presence/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId);
+    }
+
+    // Settings collection
+    match /settings/global {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Backups collection
+    match /backups/{backupId} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}

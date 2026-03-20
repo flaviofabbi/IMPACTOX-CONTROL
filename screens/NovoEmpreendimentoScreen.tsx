@@ -45,7 +45,7 @@ const NovoEmpreendimentoScreen: React.FC<Props> = ({ onSave, onCancel, logoUrl }
           </h2>
           <p className="text-slate-400 mt-1 text-[10px] uppercase tracking-widest font-black">Registro de Unidade Operacional</p>
         </div>
-        <img src={logoUrl} className="w-10 h-10 rounded-xl object-cover border border-sky-500/20 shadow-lg" alt="Logo" />
+        <img src={logoUrl} className="w-14 h-14 rounded-2xl object-cover" alt="Logo" />
       </div>
 
       <form onSubmit={handleSubmit} className="bg-slate-900 p-6 rounded-3xl border border-slate-800 space-y-5 shadow-2xl">

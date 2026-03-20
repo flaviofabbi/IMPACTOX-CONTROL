@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Save, X, DollarSign, MapPin, Briefcase, TrendingUp, Activity, FileText, Calendar, Timer, Hash, Pencil, AlertCircle, Loader2, Globe, CheckCircle2, XCircle } from 'lucide-react';
+import { Save, X, DollarSign, MapPin, Briefcase, TrendingUp, Activity, FileText, Calendar, Timer, Hash, Pencil, AlertCircle, Loader2, Globe, CheckCircle2, XCircle, User } from 'lucide-react';
 import { Capitacao, Empreendimento } from '../types';
 
 interface Props {
@@ -35,6 +35,9 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, ini
     dataInicio: new Date().toISOString().split('T')[0],
     tempoContrato: 12, // meses padrão
     dataTermino: '',
+    telefone: '',
+    telefone2: '',
+    nomeResponsavel2: '',
     renovado: false,
     logradouro: '',
     numero: '',
@@ -68,6 +71,14 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, ini
     setTimeout(() => setToast(null), 3000);
   };
 
+  const maskPhone = (value: string) => {
+    const clean = value.replace(/\D/g, '');
+    if (clean.length <= 10) {
+      return clean.replace(/^(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3').substring(0, 14);
+    }
+    return clean.replace(/^(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3').substring(0, 15);
+  };
+
   const fetchCnpjData = async () => {
     const cleanCnpj = formData.cnpj.replace(/\D/g, '');
     if (cleanCnpj.length !== 14) {
@@ -92,6 +103,8 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, ini
       
       const fullAddress = `${data.logradouro || ''}, ${data.numero || 'S/N'} - ${data.bairro || ''}, ${data.municipio || ''} - ${data.uf || ''}`;
       
+      const apiPhone = data.ddd_telefone_1 || (data.ddd && data.telefone ? `${data.ddd}${data.telefone}` : '');
+
       setFormData(prev => ({
         ...prev,
         nome: data.nome_fantasia || data.razao_social || prev.nome,
@@ -104,6 +117,7 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, ini
         cidade: data.municipio || '',
         uf: data.uf || '',
         cep: data.cep || '',
+        telefone: apiPhone ? maskPhone(apiPhone) : prev.telefone,
       }));
       
       showToast('Empresa carregada com sucesso!', 'success');
@@ -138,12 +152,13 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, ini
   const calculateStatus = (endDate: string) => {
     if (!endDate) return 'ativo';
     const today = new Date();
-    const end = new Date(endDate);
+    today.setHours(0, 0, 0, 0);
+    const end = new Date(endDate + 'T00:00:00');
     const diffTime = end.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays < 0) return 'vencido';
-    if (diffDays <= 30) return 'vencendo';
+    if (diffDays <= 5) return 'vencendo';
     return 'ativo';
   };
 
@@ -167,6 +182,9 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, ini
         dataInicio: initialData.dataInicio,
         tempoContrato: initialData.tempoContrato,
         dataTermino: initialData.dataTermino,
+        telefone: initialData.telefone || '',
+        telefone2: initialData.telefone2 || '',
+        nomeResponsavel2: initialData.nomeResponsavel2 || '',
         renovado: initialData.renovado || false,
         logradouro: initialData.logradouro || '',
         numero: initialData.numero || '',
@@ -217,6 +235,9 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, ini
       dataInicio: formData.dataInicio,
       tempoContrato: formData.tempoContrato,
       dataTermino: formData.dataTermino,
+      telefone: formData.telefone,
+      telefone2: formData.telefone2,
+      nomeResponsavel2: formData.nomeResponsavel2,
       renovado: formData.renovado,
       logradouro: formData.logradouro,
       numero: formData.numero,
@@ -255,7 +276,7 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, ini
           </h2>
           <div className="h-1 w-12 bg-sky-500 mt-2 rounded-full"></div>
         </div>
-        <img src={logoUrl} className="w-12 h-12 rounded-xl object-cover border border-sky-500/20 shadow-lg" alt="Logo" />
+        <img src={logoUrl} className="w-16 h-16 rounded-2xl object-cover" alt="Logo" />
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -364,6 +385,48 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, ini
                   className="w-full pl-12 pr-4 py-4 bg-slate-950/50 border border-sky-500/10 rounded-2xl text-white text-xs outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
                   value={formData.nome}
                   onChange={(e) => setFormData({...formData, nome: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div className="md:col-span-1">
+              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">WhatsApp / Telefone 1</label>
+              <div className="relative">
+                <Globe size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input 
+                  type="text" 
+                  placeholder="(00) 00000-0000"
+                  className="w-full pl-12 pr-4 py-4 bg-slate-950/50 border border-sky-500/10 rounded-2xl text-white text-xs outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
+                  value={formData.telefone}
+                  onChange={(e) => setFormData({...formData, telefone: maskPhone(e.target.value)})}
+                />
+              </div>
+            </div>
+
+            <div className="md:col-span-1">
+              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Nome Responsável 2</label>
+              <div className="relative">
+                <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input 
+                  type="text" 
+                  placeholder="Nome do segundo responsável"
+                  className="w-full pl-12 pr-4 py-4 bg-slate-950/50 border border-sky-500/10 rounded-2xl text-white text-xs outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
+                  value={formData.nomeResponsavel2}
+                  onChange={(e) => setFormData({...formData, nomeResponsavel2: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div className="md:col-span-1">
+              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">WhatsApp / Telefone 2</label>
+              <div className="relative">
+                <Globe size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input 
+                  type="text" 
+                  placeholder="(00) 00000-0000"
+                  className="w-full pl-12 pr-4 py-4 bg-slate-950/50 border border-sky-500/10 rounded-2xl text-white text-xs outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
+                  value={formData.telefone2}
+                  onChange={(e) => setFormData({...formData, telefone2: maskPhone(e.target.value)})}
                 />
               </div>
             </div>

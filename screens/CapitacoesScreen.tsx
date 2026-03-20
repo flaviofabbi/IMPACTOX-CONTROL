@@ -1,8 +1,9 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Capitacao, Empreendimento } from '../types';
-import { Search, Trash2, Hash, Briefcase, CheckCircle, CircleX, Filter, Activity, Pencil, Calendar, Send, FileSpreadsheet, FileText } from 'lucide-react';
+import { Search, Trash2, Hash, Briefcase, CheckCircle, CircleX, Filter, Activity, Pencil, Calendar, Send, FileSpreadsheet, FileText, RotateCcw, Globe } from 'lucide-react';
 import { exportToExcel, exportTableToPDF } from '../src/utils/exportUtils';
+import { usePersistentFilters } from '../src/hooks/usePersistentFilters';
 
 interface Props {
   capitacoes: Capitacao[];
@@ -11,41 +12,53 @@ interface Props {
   onDeleteInactive?: () => void;
   onUpdate: (item: Capitacao) => void;
   onImport: (data: any) => void;
+  onImportFile?: (file: File) => void;
   logoUrl: string;
 }
 
 const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDelete, onDeleteInactive, onUpdate, logoUrl }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'ativo' | 'vencendo' | 'vencido' | 'inativo'>('all');
-  const [empFilter, setEmpFilter] = useState<string>('all');
-  const [tipoEmpFilter, setTipoEmpFilter] = useState<string>('all');
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
-  const [minValor, setMinValor] = useState<string>('');
-  const [maxValor, setMaxValor] = useState<string>('');
+  
+  const [filters, setFilters, resetFilters] = usePersistentFilters('capitacoes_filters', {
+    status: 'all' as 'all' | 'ativo' | 'vencendo' | 'vencido' | 'inativo',
+    empId: 'all',
+    tipoEmp: 'all',
+    startDate: '',
+    endDate: '',
+    minValor: '',
+    maxValor: ''
+  });
+
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Auto-show advanced if any advanced filter is active
+  useEffect(() => {
+    if (filters.empId !== 'all' || filters.tipoEmp !== 'all' || filters.startDate || filters.endDate || filters.minValor || filters.maxValor) {
+      setShowAdvanced(true);
+    }
+  }, []);
 
   const filteredItems = useMemo(() => {
     return capitacoes.filter(item => {
       const matchesSearch = 
         item.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
         (item.cnpj && item.cnpj.includes(searchTerm));
-      const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
-      const matchesEmp = empFilter === 'all' || String(item.empreendimentoId) === empFilter;
+      const matchesStatus = filters.status === 'all' || item.status === filters.status;
+      const matchesEmp = filters.empId === 'all' || String(item.empreendimentoId) === filters.empId;
       
       const emp = empreendimentos.find(e => String(e.id) === String(item.empreendimentoId));
-      const matchesTipo = tipoEmpFilter === 'all' || (emp && emp.tipo === tipoEmpFilter);
+      const matchesTipo = filters.tipoEmp === 'all' || (emp && emp.tipo === filters.tipoEmp);
 
-      const matchesDate = (startDate === '' || item.dataTermino >= startDate) && 
-                         (endDate === '' || item.dataTermino <= endDate);
+      const matchesDate = (filters.startDate === '' || item.dataTermino >= filters.startDate) && 
+                         (filters.endDate === '' || item.dataTermino <= filters.endDate);
       
       const val = Number(item.valorContratado) || 0;
-      const matchesMin = minValor === '' || val >= Number(minValor);
-      const matchesMax = maxValor === '' || val <= Number(maxValor);
+      const matchesMin = filters.minValor === '' || val >= Number(filters.minValor);
+      const matchesMax = filters.maxValor === '' || val <= Number(filters.maxValor);
 
       return matchesSearch && matchesStatus && matchesEmp && matchesTipo && matchesDate && matchesMin && matchesMax;
     });
-  }, [capitacoes, empreendimentos, searchTerm, statusFilter, empFilter, tipoEmpFilter, startDate, endDate, minValor, maxValor]);
+  }, [capitacoes, empreendimentos, searchTerm, filters]);
 
   const hasInactive = useMemo(() => {
     return capitacoes.some(c => c.status === 'inativo');
@@ -108,7 +121,7 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDele
             <FileText size={14} />
             PDF
           </button>
-          <img src={logoUrl} className="w-12 h-12 rounded-xl object-cover border border-sky-500/20 shadow-lg ml-2" alt="Logo" />
+          <img src={logoUrl} className="w-16 h-16 rounded-2xl object-cover ml-2" alt="Logo" />
         </div>
       </div>
 
@@ -124,11 +137,11 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDele
           )}
 
           <div className="flex bg-slate-950/80 p-1.5 rounded-2xl border border-slate-800 shadow-xl backdrop-blur-md">
-            <button onClick={() => setStatusFilter('all')} className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${statusFilter === 'all' ? 'bg-sky-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>Todos</button>
-            <button onClick={() => setStatusFilter('ativo')} className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${statusFilter === 'ativo' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-emerald-400'}`}>Ativos</button>
-            <button onClick={() => setStatusFilter('vencendo')} className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${statusFilter === 'vencendo' ? 'bg-amber-600 text-white shadow-lg' : 'text-slate-500 hover:text-amber-400'}`}>Vencendo</button>
-            <button onClick={() => setStatusFilter('vencido')} className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${statusFilter === 'vencido' ? 'bg-rose-600 text-white shadow-lg' : 'text-slate-500 hover:text-rose-400'}`}>Vencidos</button>
-            <button onClick={() => setStatusFilter('inativo')} className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${statusFilter === 'inativo' ? 'bg-slate-700 text-white shadow-lg' : 'text-slate-500 hover:text-slate-400'}`}>Inativos</button>
+            <button onClick={() => setFilters({ status: 'all' })} className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${filters.status === 'all' ? 'bg-sky-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>Todos</button>
+            <button onClick={() => setFilters({ status: 'ativo' })} className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${filters.status === 'ativo' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-emerald-400'}`}>Ativos</button>
+            <button onClick={() => setFilters({ status: 'vencendo' })} className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${filters.status === 'vencendo' ? 'bg-amber-600 text-white shadow-lg' : 'text-slate-500 hover:text-amber-400'}`}>Vencendo</button>
+            <button onClick={() => setFilters({ status: 'vencido' })} className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${filters.status === 'vencido' ? 'bg-rose-600 text-white shadow-lg' : 'text-slate-500 hover:text-rose-400'}`}>Vencidos</button>
+            <button onClick={() => setFilters({ status: 'inativo' })} className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${filters.status === 'inativo' ? 'bg-slate-700 text-white shadow-lg' : 'text-slate-500 hover:text-slate-400'}`}>Inativos</button>
           </div>
 
           <button 
@@ -136,6 +149,14 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDele
             className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black transition-all text-[9px] uppercase tracking-widest border ${showAdvanced ? 'bg-sky-600 text-white border-sky-500' : 'bg-slate-900/50 text-slate-400 border-slate-800 hover:border-sky-500/30'}`}
           >
             <Filter size={14} /> {showAdvanced ? 'Ocultar Filtros' : 'Filtros Avançados'}
+          </button>
+
+          <button 
+            onClick={resetFilters}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl font-black transition-all text-[9px] uppercase tracking-widest border bg-slate-900/50 text-slate-400 border-slate-800 hover:text-rose-400 hover:border-rose-500/30"
+            title="Resetar Filtros"
+          >
+            <RotateCcw size={14} />
           </button>
         </div>
       </div>
@@ -145,8 +166,8 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDele
           <div>
             <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Empreendimento</label>
             <select 
-              value={empFilter}
-              onChange={(e) => setEmpFilter(e.target.value)}
+              value={filters.empId}
+              onChange={(e) => setFilters({ empId: e.target.value })}
               className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20 transition-all appearance-none cursor-pointer"
             >
               <option value="all">Todos</option>
@@ -158,8 +179,8 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDele
           <div>
             <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Tipo de Empreendimento</label>
             <select 
-              value={tipoEmpFilter}
-              onChange={(e) => setTipoEmpFilter(e.target.value)}
+              value={filters.tipoEmp}
+              onChange={(e) => setFilters({ tipoEmp: e.target.value })}
               className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20 transition-all appearance-none cursor-pointer"
             >
               <option value="all">Todos</option>
@@ -175,8 +196,8 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDele
             <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Vencimento (De)</label>
             <input 
               type="date" 
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              value={filters.startDate}
+              onChange={(e) => setFilters({ startDate: e.target.value })}
               className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
             />
           </div>
@@ -184,8 +205,8 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDele
             <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Vencimento (Até)</label>
             <input 
               type="date" 
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              value={filters.endDate}
+              onChange={(e) => setFilters({ endDate: e.target.value })}
               className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
             />
           </div>
@@ -194,8 +215,8 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDele
             <input 
               type="number" 
               placeholder="R$ 0,00"
-              value={minValor}
-              onChange={(e) => setMinValor(e.target.value)}
+              value={filters.minValor}
+              onChange={(e) => setFilters({ minValor: e.target.value })}
               className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
             />
           </div>
@@ -204,8 +225,8 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDele
             <input 
               type="number" 
               placeholder="R$ 1.000.000,00"
-              value={maxValor}
-              onChange={(e) => setMaxValor(e.target.value)}
+              value={filters.maxValor}
+              onChange={(e) => setFilters({ maxValor: e.target.value })}
               className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
             />
           </div>
@@ -260,6 +281,12 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDele
                     <span className="flex items-center gap-1.5"><Hash size={12} className="text-sky-500/70" /> {item.cnpj}</span>
                     <span className="flex items-center gap-1.5"><Briefcase size={12} className="text-sky-500/70" /> {item.empreendimentoNome}</span>
                     <span className="flex items-center gap-1.5"><Calendar size={12} className="text-sky-500/70" /> {item.dataTermino}</span>
+                    {item.telefone && (
+                      <span className="flex items-center gap-1.5" title="WhatsApp 1"><Globe size={12} className="text-emerald-500/70" /> {item.telefone}</span>
+                    )}
+                    {item.telefone2 && (
+                      <span className="flex items-center gap-1.5" title={`WhatsApp 2 (${item.nomeResponsavel2 || 'Responsável 2'})`}><Globe size={12} className="text-emerald-500/70" /> {item.telefone2}</span>
+                    )}
                     {item.renovado && (
                       <span className="flex items-center gap-1 px-1.5 py-0.5 bg-sky-500/10 text-sky-400 rounded-lg border border-sky-500/20">
                         <Activity size={8} /> Renovado

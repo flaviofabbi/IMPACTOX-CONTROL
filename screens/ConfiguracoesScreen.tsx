@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
-import { Bell, Shield, Smartphone, Globe, LogOut, ChevronRight, User, Download, Database, RotateCcw, UploadCloud, FileSpreadsheet, Terminal, Activity, Clock, ShieldCheck, HardDrive, RefreshCcw, UserPlus, Edit, Trash2, X, Save, Palette, AlertTriangle, Type, HelpCircle, Info, Share2, Send, DownloadCloud, Copy, Check, Mail } from 'lucide-react';
+import { Bell, Shield, Smartphone, Globe, LogOut, ChevronRight, User, Download, Database, RotateCcw, UploadCloud, FileSpreadsheet, Terminal, Activity, Clock, ShieldCheck, HardDrive, RefreshCcw, UserPlus, Edit, Trash2, X, Save, Palette, AlertTriangle, Type, HelpCircle, Info, Share2, Send, DownloadCloud, Copy, Check, Mail, FileJson } from 'lucide-react';
 import { Capitacao, Empreendimento, AccessLog, UserProfile } from '../types';
+import { generateCSVTemplate } from '../lib/importUtils';
 
 interface Props {
   users: UserProfile[];
@@ -9,6 +10,9 @@ interface Props {
   onDeleteUser: (id: string) => void;
   onLogout: () => void;
   onImport: (data: any) => void;
+  onImportFile?: (file: File) => void;
+  onCloudExport?: (id: string) => void;
+  onCloudImport?: (id: string) => void;
   capitacoes: Capitacao[];
   empreendimentos: Empreendimento[];
   accessLogs: AccessLog[];
@@ -19,6 +23,8 @@ interface Props {
   onSystemNameChange: (name: string) => void;
   logoUrl: string;
   onLogoChange: (url: string) => void;
+  whatsappTemplate: string;
+  onWhatsappTemplateChange: (template: string) => void;
 }
 
 const GRADIENTS = [
@@ -36,16 +42,24 @@ const getProfessionalIcon = (name: string) =>
 
 const ConfiguracoesScreen: React.FC<Props> = ({ 
   users, onAddUser, onUpdateUser, onDeleteUser,
-  onLogout, onImport, capitacoes, empreendimentos, accessLogs, isSyncing, lastSync, onSync,
-  systemName, onSystemNameChange, logoUrl, onLogoChange
+  onLogout, onImport, onImportFile, onCloudExport, onCloudImport, 
+  capitacoes, empreendimentos, accessLogs, isSyncing, lastSync, onSync,
+  systemName, onSystemNameChange, logoUrl, onLogoChange,
+  whatsappTemplate, onWhatsappTemplateChange
 }) => {
-  const [dbId] = useState(() => localStorage.getItem('ix_db_id') || 'DB-' + Math.random().toString(36).substr(2, 6).toUpperCase());
+  const [dbId, setDbId] = useState(() => localStorage.getItem('ix_db_id') || 'DB-' + Math.random().toString(36).substr(2, 6).toUpperCase());
   const [editingUser, setEditingUser] = useState<UserProfile | Partial<UserProfile> | null>(null);
   const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
   const [copied, setCopied] = useState(false);
   
   const snapshotInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDbIdChange = (newId: string) => {
+    const cleanId = newId.replace(/[^a-zA-Z0-9-]/g, '').toUpperCase();
+    setDbId(cleanId);
+    localStorage.setItem('ix_db_id', cleanId);
+  };
 
   const calculateStorageSize = () => {
     const data = JSON.stringify(localStorage);
@@ -102,6 +116,17 @@ const ConfiguracoesScreen: React.FC<Props> = ({
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadTemplate = (type: 'capitacao' | 'empreendimento') => {
+    const csv = generateCSVTemplate(type);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Modelo_${type === 'capitacao' ? 'Capitacoes' : 'Empreendimentos'}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleSaveUser = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingUser?.nome || !editingUser?.cargo || !editingUser?.email) return;
@@ -125,12 +150,16 @@ const ConfiguracoesScreen: React.FC<Props> = ({
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-2xl mx-auto pb-20 px-1">
-      <input type="file" ref={snapshotInputRef} className="hidden" accept=".json" onChange={(e) => {
+      <input type="file" ref={snapshotInputRef} className="hidden" accept=".json,.csv" onChange={(e) => {
         const file = e.target.files?.[0];
         if (file) {
-          const reader = new FileReader();
-          reader.onload = (ev) => onImport(JSON.parse(ev.target?.result as string));
-          reader.readAsText(file);
+          if (onImportFile) {
+            onImportFile(file);
+          } else {
+            const reader = new FileReader();
+            reader.onload = (ev) => onImport(JSON.parse(ev.target?.result as string));
+            reader.readAsText(file);
+          }
         }
       }} />
 
@@ -139,7 +168,7 @@ const ConfiguracoesScreen: React.FC<Props> = ({
           <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic">Configurações</h2>
           <p className="text-sky-500/60 text-[8px] font-black uppercase tracking-[0.3em] mt-1">Terminal de Operações Cloud (Shared)</p>
         </div>
-        <img src={logoUrl} className="w-12 h-12 rounded-xl object-cover border border-sky-500/20 shadow-lg" alt="Logo" />
+        <img src={logoUrl} className="w-16 h-16 rounded-2xl object-cover" alt="Logo" />
       </div>
 
       <div className="space-y-4">
@@ -156,7 +185,7 @@ const ConfiguracoesScreen: React.FC<Props> = ({
             <Database size={14} className="text-sky-500" /> Firebase Cloud Database
           </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div className="p-4 bg-slate-950/50 border border-slate-800 rounded-2xl">
               <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Capitações Sincronizadas</p>
               <p className="text-xl font-black text-white">{capitacoes.length}</p>
@@ -168,6 +197,54 @@ const ConfiguracoesScreen: React.FC<Props> = ({
             <div className="p-4 bg-slate-950/50 border border-slate-800 rounded-2xl">
               <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Usuários Registrados</p>
               <p className="text-xl font-black text-white">{users.length}</p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="p-4 bg-slate-950/50 border border-slate-800 rounded-2xl">
+              <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 block">ID do Banco de Dados (Terminal)</label>
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  value={dbId}
+                  onChange={(e) => handleDbIdChange(e.target.value)}
+                  className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:border-sky-500/50 transition-all"
+                  placeholder="EX: DB-XXXXXX"
+                />
+                <button 
+                  onClick={() => {
+                    const newId = 'DB-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+                    handleDbIdChange(newId);
+                  }}
+                  className="p-2 bg-slate-800 text-slate-400 hover:text-white rounded-xl transition-all"
+                  title="Gerar Novo ID"
+                >
+                  <RotateCcw size={14} />
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button 
+                onClick={() => onCloudExport?.(dbId)}
+                disabled={isSyncing}
+                className="py-3 bg-sky-600/10 border border-sky-600/20 hover:bg-sky-600 text-sky-500 hover:text-white text-[8px] font-black uppercase tracking-widest rounded-xl transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <UploadCloud size={14} />
+                Exportar p/ Cloud
+              </button>
+              <button 
+                onClick={() => {
+                  if (window.confirm('Isso substituirá seus dados locais pelos dados do Cloud. Continuar?')) {
+                    onCloudImport?.(dbId);
+                  }
+                }}
+                disabled={isSyncing}
+                className="py-3 bg-emerald-600/10 border border-emerald-600/20 hover:bg-emerald-600 text-emerald-500 hover:text-white text-[8px] font-black uppercase tracking-widest rounded-xl transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <DownloadCloud size={14} />
+                Importar do Cloud
+              </button>
             </div>
           </div>
 
@@ -199,7 +276,7 @@ const ConfiguracoesScreen: React.FC<Props> = ({
           
           <div className="flex flex-col md:flex-row items-center gap-6">
             <div className="relative group">
-              <div className="w-24 h-24 rounded-2xl bg-slate-950 border border-slate-800 overflow-hidden shadow-2xl">
+              <div className="w-32 h-32 rounded-3xl bg-slate-950 overflow-hidden">
                 <img src={logoUrl} className="w-full h-full object-cover" alt="Logo Atual" />
               </div>
               <button 
@@ -263,6 +340,28 @@ const ConfiguracoesScreen: React.FC<Props> = ({
 
           <div className="space-y-4">
             <div className="p-4 bg-slate-950/50 border border-slate-800 rounded-2xl">
+              <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Template da Mensagem</label>
+              <textarea 
+                value={whatsappTemplate}
+                onChange={(e) => onWhatsappTemplateChange(e.target.value)}
+                rows={4}
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white text-[10px] font-medium outline-none focus:border-emerald-500/50 transition-all resize-none"
+                placeholder="Digite o template da mensagem..."
+              />
+              <div className="mt-2 flex flex-wrap gap-2">
+                {['[nome]', '[data]', '[empreendimento]'].map(tag => (
+                  <button 
+                    key={tag}
+                    onClick={() => onWhatsappTemplateChange(whatsappTemplate + ' ' + tag)}
+                    className="px-2 py-1 bg-slate-800 text-[7px] font-black text-slate-400 uppercase rounded-md hover:text-white transition-all"
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-950/50 border border-slate-800 rounded-2xl">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Status do Robô</p>
                 <span className="text-[8px] font-black text-emerald-500 uppercase px-2 py-0.5 bg-emerald-500/10 rounded-full border border-emerald-500/20">Configurado</span>
@@ -316,21 +415,25 @@ const ConfiguracoesScreen: React.FC<Props> = ({
           <div className="relative z-10">
             <h3 className="text-white font-black text-sm uppercase tracking-widest mb-1">Backup & Transferência</h3>
             <p className="text-sky-100 text-[10px] mb-6 font-medium leading-relaxed max-w-[240px]">
-              O sistema agora utiliza sincronização Cloud em tempo real. Exporte backups para segurança extra.
+              O sistema agora utiliza sincronização Cloud em tempo real. Exporte backups ou importe via CSV.
             </p>
             
-            <div className="grid grid-cols-3 gap-2">
-              <button onClick={handleShareSnapshot} className="flex flex-col items-center gap-2 p-3 bg-white/10 border border-white/20 rounded-2xl hover:bg-white/20 transition-all">
+            <div className="grid grid-cols-4 gap-2">
+              <button onClick={handleShareSnapshot} className="flex flex-col items-center gap-2 p-3 bg-white/10 border border-white/20 rounded-2xl hover:bg-white/20 transition-all" title="Compartilhar JSON">
                 <Share2 size={16} className="text-white" />
                 <span className="text-[7px] font-black text-white uppercase">Enviar</span>
               </button>
-              <button onClick={handleCopySnapshot} className="flex flex-col items-center gap-2 p-3 bg-white/10 border border-white/20 rounded-2xl hover:bg-white/20 transition-all">
+              <button onClick={handleCopySnapshot} className="flex flex-col items-center gap-2 p-3 bg-white/10 border border-white/20 rounded-2xl hover:bg-white/20 transition-all" title="Copiar JSON">
                 {copied ? <Check size={16} className="text-emerald-400" /> : <Copy size={16} className="text-white" />}
                 <span className="text-[7px] font-black text-white uppercase">{copied ? 'Copiado' : 'Copiar'}</span>
               </button>
-              <button onClick={() => snapshotInputRef.current?.click()} className="flex flex-col items-center gap-2 p-3 bg-slate-950/20 border border-white/10 rounded-2xl hover:bg-slate-950/40 transition-all">
+              <button onClick={() => snapshotInputRef.current?.click()} className="flex flex-col items-center gap-2 p-3 bg-slate-950/20 border border-white/10 rounded-2xl hover:bg-slate-950/40 transition-all" title="Importar JSON ou CSV">
                 <DownloadCloud size={16} className="text-emerald-400" />
                 <span className="text-[7px] font-black text-white uppercase">Receber</span>
+              </button>
+              <button onClick={() => handleDownloadTemplate('capitacao')} className="flex flex-col items-center gap-2 p-3 bg-white/10 border border-white/20 rounded-2xl hover:bg-white/20 transition-all" title="Baixar Modelo CSV">
+                <FileSpreadsheet size={16} className="text-white" />
+                <span className="text-[7px] font-black text-white uppercase">Modelo</span>
               </button>
             </div>
           </div>

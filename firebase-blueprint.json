@@ -1,0 +1,90 @@
+{
+  "entities": {
+    "Capitacao": {
+      "title": "Capitacao",
+      "description": "Registro de captação de clientes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "status": { "type": "string" },
+        "nome": { "type": "string" },
+        "email": { "type": "string" },
+        "telefone": { "type": "string" },
+        "telefone2": { "type": "string" },
+        "nomeResponsavel2": { "type": "string" },
+        "empreendimento": { "type": "string" },
+        "tipoEmpreendimento": { "type": "string" },
+        "valor": { "type": "number" },
+        "data": { "type": "string" },
+        "aviso5DiasEnviado": { "type": "boolean" }
+      }
+    },
+    "Empreendimento": {
+      "title": "Empreendimento",
+      "description": "Cadastro de empreendimentos imobiliários",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nome": { "type": "string" },
+        "tipo": { "type": "string" },
+        "localizacao": { "type": "string" }
+      }
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Perfil do usuário/operador",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nome": { "type": "string" },
+        "email": { "type": "string" },
+        "cargo": { "type": "string" },
+        "avatar": { "type": "string" },
+        "cor": { "type": "string" }
+      }
+    },
+    "Presence": {
+      "title": "Presence",
+      "description": "Status de presença online do usuário",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "isOnline": { "type": "boolean" },
+        "lastSeen": { "type": "string" }
+      }
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "Configurações globais do sistema",
+      "type": "object",
+      "properties": {
+        "systemName": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "whatsappTemplate": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "capitacoes/{capitacaoId}": {
+      "schema": "Capitacao",
+      "description": "Coleção de captações"
+    },
+    "empreendimentos/{empreendimentoId}": {
+      "schema": "Empreendimento",
+      "description": "Coleção de empreendimentos"
+    },
+    "users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Perfis de usuários"
+    },
+    "presence/{userId}": {
+      "schema": "Presence",
+      "description": "Status de presença"
+    },
+    "settings/global": {
+      "schema": "Settings",
+      "description": "Configurações globais"
+    }
+  }
+}

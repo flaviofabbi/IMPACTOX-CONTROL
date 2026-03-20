@@ -94,7 +94,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, logoU
           <div className="flex flex-col h-full p-8">
             <div className="flex items-center justify-between mb-12">
               <div className="flex items-center gap-3">
-                <img src={logoUrl} className="h-10 w-10 rounded-xl object-cover border border-sky-500/30" />
+                <img src={logoUrl} className="h-16 w-16 rounded-2xl object-cover" />
                 <h1 className="text-lg font-black text-white uppercase tracking-tighter">
                   {renderSystemName(systemName)}
                 </h1>
@@ -146,10 +146,10 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, logoU
       <aside className="hidden md:flex flex-col w-64 bg-slate-900/40 backdrop-blur-xl text-white z-50 border-r border-sky-500/10 shrink-0">
         <div className="p-8 flex flex-col items-center gap-4 pt-10 mb-2">
           <div onClick={handleLogoClick} className="relative cursor-pointer group">
-            <div className="p-1 bg-gradient-to-br from-sky-400 via-sky-500 to-sky-600 rounded-3xl shadow-[0_0_30px_rgba(14,165,233,0.3)] transition-all group-hover:scale-105 group-hover:rotate-3">
-              <img src={logoUrl} className="w-24 h-24 rounded-[1.5rem] object-cover bg-slate-950" />
+            <div className="transition-all group-hover:scale-105">
+              <img src={logoUrl} className="w-32 h-32 rounded-[2rem] object-cover" />
             </div>
-            <div className="absolute -bottom-2 -right-2 bg-emerald-500 p-1.5 rounded-full border-4 border-[#020617] shadow-xl">
+            <div className="absolute -bottom-1 -right-1 bg-emerald-500 p-1.5 rounded-full border-4 border-[#020617] shadow-xl">
                <ShieldCheck size={14} className="text-white" />
             </div>
           </div>
@@ -244,7 +244,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, logoU
         
         <header className="md:hidden flex items-center justify-between p-4 bg-slate-900/80 backdrop-blur-md border-b border-sky-500/10 z-40">
            <div className="flex items-center gap-3">
-             <img src={logoUrl} className="h-8 w-8 rounded-lg object-cover border border-sky-500/30" />
+             <img src={logoUrl} className="h-12 w-12 rounded-xl object-cover" />
              <h1 className="text-xs font-black text-white uppercase tracking-tighter truncate max-w-[120px]">
                {renderSystemName(systemName)}
              </h1>

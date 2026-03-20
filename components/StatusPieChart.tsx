@@ -44,10 +44,10 @@ const StatusPieChart: React.FC<StatusPieChartProps> = ({ data }) => {
   };
 
   return (
-    <div className="w-full h-[300px] min-h-[300px] relative">
-      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-8">
-        <span className="text-2xl font-black text-white">{total}</span>
-        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Total</span>
+    <div className="w-full h-full relative">
+      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-12">
+        <span className="text-xl font-black text-white">{total}</span>
+        <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Total</span>
       </div>
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
@@ -57,8 +57,8 @@ const StatusPieChart: React.FC<StatusPieChartProps> = ({ data }) => {
             cy="50%"
             labelLine={false}
             label={renderCustomizedLabel}
-            outerRadius={95}
-            innerRadius={70}
+            outerRadius={80}
+            innerRadius={60}
             paddingAngle={8}
             fill="#8884d8"
             dataKey="value"

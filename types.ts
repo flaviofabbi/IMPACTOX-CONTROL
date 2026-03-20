@@ -34,6 +34,9 @@ export interface Capitacao {
   dataInicio: string;
   tempoContrato: number; // meses
   dataTermino: string;
+  telefone?: string;
+  telefone2?: string;
+  nomeResponsavel2?: string;
   aviso5DiasEnviado?: boolean;
   renovado?: boolean;
   userId?: string;

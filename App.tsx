@@ -9,7 +9,9 @@ import NovoEmpreendimentoScreen from './screens/NovoEmpreendimentoScreen';
 import RelatoriosScreen from './screens/RelatoriosScreen';
 import ConfiguracoesScreen from './screens/ConfiguracoesScreen';
 import LoginScreen from './screens/LoginScreen';
-import { db } from './lib/database';
+import { db, testFirestoreConnection } from './lib/database';
+import ErrorBoundary from './components/ErrorBoundary';
+import { parseCSV } from './lib/importUtils';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AppTab>('Dashboard');
@@ -19,6 +21,7 @@ const App: React.FC = () => {
   
   const [logoUrl, setLogoUrl] = useState("/assets/logo.png");
   const [systemName, setSystemName] = useState('Impacto X');
+  const [whatsappTemplate, setWhatsappTemplate] = useState('⚠️ Alerta de vencimento\nO ponto de captação [nome] vence em [data].\nFaltam 5 dias para o término do contrato.\nVerifique no aplicativo.');
 
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const currentUserRef = useRef<UserProfile | null>(null);
@@ -37,6 +40,8 @@ const App: React.FC = () => {
     const savedLogo = localStorage.getItem('impacto_logo');
     if (savedLogo) setLogoUrl(savedLogo);
     
+    testFirestoreConnection();
+
     const timeout = setTimeout(() => {
       if (isInitializing) {
         console.warn("Initialization timed out, forcing login screen");
@@ -89,6 +94,7 @@ const App: React.FC = () => {
     const unsubSettings = db.settings.subscribe((data) => {
       if (data.systemName) setSystemName(data.systemName);
       if (data.logoUrl) setLogoUrl(data.logoUrl);
+      if (data.whatsappTemplate) setWhatsappTemplate(data.whatsappTemplate);
     });
     const unsubPresence = db.users.subscribePresence((activeUsers) => {
       setOnlineUsersCount(activeUsers.length);
@@ -155,41 +161,64 @@ const App: React.FC = () => {
     await db.settings.save({ systemName: newName });
   };
 
+  const handleWhatsappTemplateChange = async (newTemplate: string) => {
+    setWhatsappTemplate(newTemplate);
+    await db.settings.save({ whatsappTemplate: newTemplate });
+  };
+
   const checkVencimentos = async () => {
     if (!capitacoes.length) return;
     
     const hoje = new Date();
-    const dataAlvo = new Date();
-    dataAlvo.setDate(hoje.getDate() + 5);
-    const dataAlvoStr = dataAlvo.toISOString().split('T')[0];
+    hoje.setHours(0, 0, 0, 0);
+    const hojeStr = hoje.toISOString().split('T')[0];
+    
+    const cincoDiasDepois = new Date(hoje);
+    cincoDiasDepois.setDate(hoje.getDate() + 5);
+    const cincoDiasDepoisStr = cincoDiasDepois.toISOString().split('T')[0];
 
-    const vencendoEm5Dias = capitacoes.filter(c => 
-      c.dataTermino === dataAlvoStr && 
-      c.status === 'ativo' && 
-      !c.aviso5DiasEnviado
-    );
+    console.log(`Verificando vencimentos... Hoje: ${hojeStr}, Alvo 5D: ${cincoDiasDepoisStr}`);
 
-    if (vencendoEm5Dias.length > 0) {
-      console.log(`Encontrados ${vencendoEm5Dias.length} contratos vencendo em 5 dias.`);
-      const numeros = ['5511989590038', '5511994489140'];
-      
-      for (const ponto of vencendoEm5Dias) {
-        const msg = encodeURIComponent(`⚠️ Alerta de vencimento\nO ponto de captação ${ponto.nome} vence em ${ponto.dataTermino}.\nFaltam 5 dias para o término do contrato.\nVerifique no aplicativo.`);
+    for (const ponto of capitacoes) {
+      let novoStatus = ponto.status;
+      const dataTermino = ponto.dataTermino;
+
+      // Se o contrato já estiver inativo, não mudamos automaticamente para não sobrescrever desativações manuais
+      if (ponto.status === 'inativo') continue;
+
+      if (dataTermino < hojeStr) {
+        novoStatus = 'vencido';
+      } else if (dataTermino <= cincoDiasDepoisStr) {
+        novoStatus = 'vencendo';
+      } else if (dataTermino > cincoDiasDepoisStr && (ponto.status === 'vencendo' || ponto.status === 'vencido')) {
+        // Se foi renovado ou a data mudou para o futuro, volta a ser ativo
+        novoStatus = 'ativo';
+      }
+
+      // Atualiza status se mudou
+      if (novoStatus !== ponto.status) {
+        console.log(`Atualizando status de ${ponto.nome}: ${ponto.status} -> ${novoStatus}`);
+        await db.capitacoes.updateStatus(ponto.id.toString(), novoStatus);
+      }
+
+      // Lógica de notificação WhatsApp (apenas se for exatamente 5 dias e ainda não enviado)
+      if (dataTermino === cincoDiasDepoisStr && !ponto.aviso5DiasEnviado && novoStatus === 'vencendo') {
+        const msg = encodeURIComponent(whatsappTemplate.replace('[nome]', ponto.nome).replace('[data]', ponto.dataTermino).replace('[empreendimento]', ponto.empreendimentoNome));
         
-        // No cliente, não podemos enviar "automaticamente" sem abrir o WhatsApp
-        // Mas podemos registrar que o alerta foi processado e abrir o link se for manual
-        console.log(`Processando alerta para: ${ponto.nome}`);
+        console.log(`Notificação de 5 dias para: ${ponto.nome}`);
+        console.log(`Mensagem: ${decodeURIComponent(msg)}`);
         
         // Atualiza no banco que o aviso foi processado
         await db.capitacoes.updateAvisoEnviado(ponto.id.toString());
-        
-        // Se for um trigger manual (evento), abrimos o primeiro número no WhatsApp como demonstração
-        // Em produção, o Cloud Function cuidaria disso de forma 100% invisível
       }
     }
   };
 
   useEffect(() => {
+    if (capitacoes.length > 0) {
+      checkVencimentos();
+    }
+    
     const handleTrigger = () => checkVencimentos();
     window.addEventListener('trigger-vencimento-check', handleTrigger);
     return () => window.removeEventListener('trigger-vencimento-check', handleTrigger);
@@ -197,26 +226,99 @@ const App: React.FC = () => {
 
   const handleImportData = async (data: any) => {
     if (!currentUser) return;
+    setIsSyncing(true);
     try {
-      if (data.users) {
+      if (data.users && Array.isArray(data.users)) {
         for (const u of data.users) {
           await db.users.setProfile(u.id, u);
         }
       }
-      if (data.capitacoes) {
+      if (data.capitacoes && Array.isArray(data.capitacoes)) {
         for (const c of data.capitacoes) {
-          await db.capitacoes.save(c);
+          await db.capitacoes.save({ ...c, userId: currentUser.id });
         }
       }
-      if (data.empreendimentos) {
+      if (data.empreendimentos && Array.isArray(data.empreendimentos)) {
         for (const e of data.empreendimentos) {
-          await db.empreendimentos.save(e);
+          await db.empreendimentos.save({ ...e, userId: currentUser.id });
         }
       }
       await refreshData();
       alert('Dados importados com sucesso!');
     } catch (e) {
       alert('Erro na importação: ' + e);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleImportFile = async (file: File) => {
+    if (!currentUser) return;
+    
+    if (file.name.endsWith('.json')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const json = JSON.parse(event.target?.result as string);
+          handleImportData(json);
+        } catch (err) {
+          alert('Erro ao processar arquivo JSON: ' + err);
+        }
+      };
+      reader.readAsText(file);
+    } else if (file.name.endsWith('.csv')) {
+      try {
+        const result = await parseCSV(file);
+        if (result.errors.length > 0) {
+          console.warn('Erros no CSV:', result.errors);
+        }
+        await handleImportData({
+          capitacoes: result.capitacoes,
+          empreendimentos: result.empreendimentos
+        });
+      } catch (err) {
+        alert('Erro ao processar arquivo CSV: ' + err);
+      }
+    } else {
+      alert('Formato de arquivo não suportado. Use .json ou .csv');
+    }
+  };
+  
+  const handleCloudExport = async (id: string) => {
+    if (!currentUser) return;
+    setIsSyncing(true);
+    try {
+      const data = {
+        users,
+        capitacoes,
+        empreendimentos,
+        systemName,
+        timestamp: new Date().toISOString()
+      };
+      await db.backups.save(id, data);
+      alert(`Backup Cloud salvo com sucesso! ID: ${id}`);
+    } catch (e) {
+      alert('Erro ao exportar para Cloud: ' + e);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleCloudImport = async (id: string) => {
+    if (!currentUser) return;
+    setIsSyncing(true);
+    try {
+      const data = await db.backups.get(id);
+      if (data) {
+        await handleImportData(data);
+        alert('Dados importados do Cloud com sucesso!');
+      } else {
+        alert('Backup Cloud não encontrado para o ID: ' + id);
+      }
+    } catch (e) {
+      alert('Erro ao importar do Cloud: ' + e);
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -245,11 +347,9 @@ const App: React.FC = () => {
         onLogin={async () => {
           try {
             setIsInitializing(true);
-            await db.auth.loginAnonymously();
-            // App.tsx vai reagir ao onAuthStateChanged
+            await db.auth.loginWithGoogle();
           } catch (e) {
-            console.error("Erro no login anônimo:", e);
-            alert("Erro ao conectar ao Firebase. Verifique se o login anônimo está ativo no console.");
+            console.error("Erro no login Google:", e);
             setIsInitializing(false);
           }
         }} 
@@ -258,182 +358,196 @@ const App: React.FC = () => {
   }
 
   return (
-    <Layout 
-      activeTab={activeTab} 
-      onTabChange={(tab) => {
-        if (tab !== 'Novo') setEditingCapitacao(null);
-        setActiveTab(tab);
-      }} 
-      logoUrl={logoUrl} 
-      onLogoChange={handleLogoChange}
-      currentUser={currentUser}
-      onSwitchUser={handleLogout}
-      systemName={systemName}
-      onlineUsersCount={onlineUsersCount}
-    >
-      {activeTab === 'Dashboard' && (
-        <DashboardScreen 
-          capitacoes={capitacoes} 
-          isSyncing={isSyncing} 
-          onImport={handleImportData} 
-          logoUrl={logoUrl}
-          onNavigate={(tab) => {
-            if (tab === 'NovaCapitacao') {
+    <ErrorBoundary>
+      <Layout 
+        activeTab={activeTab} 
+        onTabChange={(tab) => {
+          if (tab !== 'Novo') setEditingCapitacao(null);
+          setActiveTab(tab);
+        }} 
+        logoUrl={logoUrl} 
+        onLogoChange={handleLogoChange}
+        currentUser={currentUser}
+        onSwitchUser={handleLogout}
+        systemName={systemName}
+        onlineUsersCount={onlineUsersCount}
+      >
+        {activeTab === 'Dashboard' && (
+          <DashboardScreen 
+            capitacoes={capitacoes} 
+            isSyncing={isSyncing} 
+            onImport={handleImportData} 
+            onImportFile={handleImportFile}
+            logoUrl={logoUrl}
+            whatsappTemplate={whatsappTemplate}
+            onUpdateAviso={async (id) => {
+              await db.capitacoes.updateAvisoEnviado(id);
+              await refreshData();
+            }}
+            onNavigate={(tab) => {
+              if (tab === 'NovaCapitacao') {
+                setNewType('capitacao');
+                setActiveTab('Novo');
+              } else if (tab === 'NovoEmpreendimento') {
+                setNewType('empreendimento');
+                setActiveTab('Novo');
+              } else {
+                setActiveTab(tab as AppTab);
+              }
+            }}
+            onGenerateSampleData={() => {
+              const demoData = {
+                empreendimentos: [
+                  { id: 'emp1', nome: 'Unidade Central', responsavel: 'Dr. Silva', status: 'ativo', email: 'contato@central.com', telefone: '11999999999' },
+                  { id: 'emp2', nome: 'Unidade Norte', responsavel: 'Dra. Maria', status: 'ativo', email: 'contato@norte.com', telefone: '11888888888' }
+                ],
+                capitacoes: [
+                  { 
+                    id: 'cap1', 
+                    nome: 'Ponto Alpha', 
+                    cnpj: '12.345.678/0001-90', 
+                    valorContratado: 50000, 
+                    valorRepassado: 35000, 
+                    margem: 15000, 
+                    status: 'ativo', 
+                    empreendimentoId: 'emp1', 
+                    empreendimentoNome: 'Unidade Central',
+                    dataInicio: '2025-01-01',
+                    tempoContrato: 12,
+                    dataTermino: '2026-01-01'
+                  },
+                  { 
+                    id: 'cap2', 
+                    nome: 'Ponto Beta', 
+                    cnpj: '98.765.432/0001-10', 
+                    valorContratado: 80000, 
+                    valorRepassado: 60000, 
+                    margem: 20000, 
+                    status: 'vencendo', 
+                    empreendimentoId: 'emp2', 
+                    empreendimentoNome: 'Unidade Norte',
+                    dataInicio: '2025-02-01',
+                    tempoContrato: 12,
+                    dataTermino: '2026-02-01'
+                  }
+                ]
+              };
+              handleImportData(demoData);
+            }}
+          />
+        )}
+        
+        {activeTab === 'Capitações' && (
+          <CapitacoesScreen 
+            capitacoes={capitacoes} 
+            empreendimentos={empreendimentos}
+            logoUrl={logoUrl}
+            onDelete={async (id) => { 
+              await db.capitacoes.delete(id.toString()); 
+              await refreshData(); 
+            }}
+            onDeleteInactive={async () => { 
+              await db.capitacoes.clearInactives(currentUser.id); 
+              await refreshData(); 
+            }}
+            onUpdate={(cap) => {
+              setEditingCapitacao(cap);
               setNewType('capitacao');
               setActiveTab('Novo');
-            } else if (tab === 'NovoEmpreendimento') {
-              setNewType('empreendimento');
-              setActiveTab('Novo');
-            } else {
-              setActiveTab(tab);
-            }
-          }}
-          onGenerateSampleData={() => {
-            const demoData = {
-              empreendimentos: [
-                { id: 'emp1', nome: 'Unidade Central', responsavel: 'Dr. Silva', status: 'ativo', email: 'contato@central.com', telefone: '11999999999' },
-                { id: 'emp2', nome: 'Unidade Norte', responsavel: 'Dra. Maria', status: 'ativo', email: 'contato@norte.com', telefone: '11888888888' }
-              ],
-              capitacoes: [
-                { 
-                  id: 'cap1', 
-                  nome: 'Ponto Alpha', 
-                  cnpj: '12.345.678/0001-90', 
-                  valorContratado: 50000, 
-                  valorRepassado: 35000, 
-                  margem: 15000, 
-                  status: 'ativo', 
-                  empreendimentoId: 'emp1', 
-                  empreendimentoNome: 'Unidade Central',
-                  dataInicio: '2025-01-01',
-                  tempoContrato: 12,
-                  dataTermino: '2026-01-01'
-                },
-                { 
-                  id: 'cap2', 
-                  nome: 'Ponto Beta', 
-                  cnpj: '98.765.432/0001-10', 
-                  valorContratado: 80000, 
-                  valorRepassado: 60000, 
-                  margem: 20000, 
-                  status: 'vencendo', 
-                  empreendimentoId: 'emp2', 
-                  empreendimentoNome: 'Unidade Norte',
-                  dataInicio: '2025-02-01',
-                  tempoContrato: 12,
-                  dataTermino: '2026-02-01'
-                }
-              ]
-            };
-            handleImportData(demoData);
-          }}
-        />
-      )}
-      
-      {activeTab === 'Capitações' && (
-        <CapitacoesScreen 
-          capitacoes={capitacoes} 
-          empreendimentos={empreendimentos}
-          logoUrl={logoUrl}
-          onDelete={async (id) => { 
-            await db.capitacoes.delete(id.toString()); 
-            await refreshData(); 
-          }}
-          onDeleteInactive={async () => { 
-            await db.capitacoes.clearInactives(currentUser.id); 
-            await refreshData(); 
-          }}
-          onUpdate={(cap) => {
-            setEditingCapitacao(cap);
-            setNewType('capitacao');
-            setActiveTab('Novo');
-          }}
-          onImport={handleImportData}
-        />
-      )}
-
-      {activeTab === 'Empreendimentos' && (
-        <PlantoesScreen 
-          empreendimentos={empreendimentos} 
-          logoUrl={logoUrl}
-          onAddRequest={() => { setNewType('empreendimento'); setActiveTab('Novo'); }} 
-          onDelete={async (id) => { 
-            await db.empreendimentos.delete(id.toString()); 
-            await refreshData(); 
-          }}
-          onUpdate={async (u) => { 
-            await db.empreendimentos.save(u); 
-            await refreshData(); 
-          }}
-        />
-      )}
-
-      {activeTab === 'Relatórios' && (
-        <RelatoriosScreen 
-          capitacoes={capitacoes}
-          empreendimentos={empreendimentos}
-          logoUrl={logoUrl}
-        />
-      )}
-
-      {activeTab === 'Novo' && (
-        newType === 'capitacao' ? (
-          <NovaCapitacaoScreen 
-            empreendimentos={empreendimentos}
-            capitacoes={capitacoes}
-            initialData={editingCapitacao || undefined}
-            logoUrl={logoUrl}
-            onSave={async (nova) => {
-              await db.capitacoes.save({
-                ...nova,
-                userId: currentUser.id,
-                id: editingCapitacao?.id || undefined,
-                data: new Date().toISOString().split('T')[0],
-                mes: ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][new Date().getMonth()]
-              });
-              setEditingCapitacao(null);
-              await refreshData();
-              setActiveTab('Capitações');
-            }} 
-            onCancel={() => { setEditingCapitacao(null); setActiveTab('Capitações'); }} 
-          />
-        ) : (
-          <NovoEmpreendimentoScreen 
-            logoUrl={logoUrl}
-            onSave={async (nova) => {
-              await db.empreendimentos.save({ ...nova, userId: currentUser.id });
-              await refreshData();
-              setActiveTab('Empreendimentos');
             }}
-            onCancel={() => setActiveTab('Empreendimentos')}
+            onImport={handleImportData}
+            onImportFile={handleImportFile}
           />
-        )
-      )}
-
-      {activeTab === 'Config' && (
-        <ConfiguracoesScreen 
-          users={users} 
-          logoUrl={logoUrl}
-          onLogoChange={handleLogoChange}
-          onAddUser={async (u) => { 
-             const uid = 'u_' + Math.random().toString(36).substr(2, 9);
-             await db.users.setProfile(uid, { ...u, id: uid });
-             await refreshData();
-          }} 
-          onUpdateUser={async (u) => { 
-            await db.users.setProfile(u.id, u); 
-            await refreshData(); 
-          }} 
-          onDeleteUser={async (id) => { 
-            await db.users.delete(id);
-            await refreshData();
-          }}
-          capitacoes={capitacoes} empreendimentos={empreendimentos} accessLogs={[]}
-          onImport={handleImportData} isSyncing={isSyncing} lastSync={""} onSync={() => refreshData()}
-          onLogout={handleLogout} systemName={systemName} onSystemNameChange={handleSystemNameChange}
-        />
-      )}
-    </Layout>
+        )}
+        
+        {activeTab === 'Empreendimentos' && (
+          <PlantoesScreen 
+            empreendimentos={empreendimentos} 
+            logoUrl={logoUrl}
+            onAddRequest={() => { setNewType('empreendimento'); setActiveTab('Novo'); }} 
+            onDelete={async (id) => { 
+              await db.empreendimentos.delete(id.toString()); 
+              await refreshData(); 
+            }}
+            onUpdate={async (u) => { 
+              await db.empreendimentos.save(u); 
+              await refreshData(); 
+            }}
+          />
+        )}
+        
+        {activeTab === 'Relatórios' && (
+          <RelatoriosScreen 
+            capitacoes={capitacoes}
+            empreendimentos={empreendimentos}
+            logoUrl={logoUrl}
+          />
+        )}
+        
+        {activeTab === 'Novo' && (
+          newType === 'capitacao' ? (
+            <NovaCapitacaoScreen 
+              empreendimentos={empreendimentos}
+              capitacoes={capitacoes}
+              initialData={editingCapitacao || undefined}
+              logoUrl={logoUrl}
+              onSave={async (nova) => {
+                await db.capitacoes.save({
+                  ...nova,
+                  userId: currentUser.id,
+                  id: editingCapitacao?.id || undefined,
+                  data: new Date().toISOString().split('T')[0],
+                  mes: ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][new Date().getMonth()]
+                });
+                setEditingCapitacao(null);
+                await refreshData();
+                setActiveTab('Capitações');
+              }} 
+              onCancel={() => { setEditingCapitacao(null); setActiveTab('Capitações'); }} 
+            />
+          ) : (
+            <NovoEmpreendimentoScreen 
+              logoUrl={logoUrl}
+              onSave={async (nova) => {
+                await db.empreendimentos.save({ ...nova, userId: currentUser.id });
+                await refreshData();
+                setActiveTab('Empreendimentos');
+              }}
+              onCancel={() => setActiveTab('Empreendimentos')}
+            />
+          )
+        )}
+        
+        {activeTab === 'Config' && (
+          <ConfiguracoesScreen 
+            users={users} 
+            logoUrl={logoUrl}
+            onLogoChange={handleLogoChange}
+            onAddUser={async (u) => { 
+               const uid = 'u_' + Math.random().toString(36).substr(2, 9);
+               await db.users.setProfile(uid, { ...u, id: uid });
+               await refreshData();
+            }} 
+            onUpdateUser={async (u) => { 
+              await db.users.setProfile(u.id, u); 
+              await refreshData(); 
+            }} 
+            onDeleteUser={async (id) => { 
+              await db.users.delete(id);
+              await refreshData();
+            }}
+            capitacoes={capitacoes} empreendimentos={empreendimentos} accessLogs={[]}
+            onImport={handleImportData} 
+            onImportFile={handleImportFile}
+            onCloudExport={handleCloudExport}
+            onCloudImport={handleCloudImport}
+            isSyncing={isSyncing} lastSync={""} onSync={() => refreshData()}
+            onLogout={handleLogout} systemName={systemName} onSystemNameChange={handleSystemNameChange}
+            whatsappTemplate={whatsappTemplate} onWhatsappTemplateChange={handleWhatsappTemplateChange}
+          />
+        )}
+      </Layout>
+    </ErrorBoundary>
   );
 };
 
