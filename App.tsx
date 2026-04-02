@@ -12,6 +12,7 @@ import LoginScreen from './screens/LoginScreen';
 import { db, testFirestoreConnection } from './lib/database';
 import ErrorBoundary from './components/ErrorBoundary';
 import { parseCSV } from './lib/importUtils';
+import { messaging, getToken, onMessage } from './firebase';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AppTab>('Dashboard');
@@ -42,6 +43,44 @@ const App: React.FC = () => {
     if (savedLogo) setLogoUrl(savedLogo);
     
     testFirestoreConnection();
+
+    // Registrar Service Worker e solicitar permissão para notificações
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then((registration) => {
+          console.log('Service Worker registrado com sucesso:', registration.scope);
+          
+          // Solicitar permissão para notificações
+          if (Notification.permission === 'default') {
+            Notification.requestPermission().then(permission => {
+              if (permission === 'granted') {
+                console.log('Permissão para notificações concedida.');
+                if (messaging) {
+                  getToken(messaging, { serviceWorkerRegistration: registration })
+                    .then((token) => {
+                      console.log('FCM Token:', token);
+                      // Aqui você poderia salvar o token no Firestore para enviar notificações via Cloud Functions
+                    });
+                }
+              }
+            });
+          }
+        })
+        .catch((err) => console.error('Erro ao registrar Service Worker:', err));
+    }
+
+    // Ouvir mensagens quando o app está em primeiro plano
+    if (messaging) {
+      onMessage(messaging, (payload) => {
+        console.log('Mensagem recebida em primeiro plano:', payload);
+        if (payload.notification) {
+          new Notification(payload.notification.title || 'Alerta', {
+            body: payload.notification.body,
+            icon: '/assets/logo.png'
+          });
+        }
+      });
+    }
 
     const timeout = setTimeout(() => {
       if (isInitializing) {
@@ -215,12 +254,29 @@ const App: React.FC = () => {
         await db.capitacoes.updateStatus(ponto.id.toString(), novoStatus);
       }
 
-      // Lógica de notificação WhatsApp (apenas se for exatamente 5 dias e ainda não enviado)
+      // Lógica de notificação (apenas se for exatamente 5 dias e ainda não enviado)
       if (dataTermino === cincoDiasDepoisStr && !ponto.aviso5DiasEnviado && novoStatus === 'vencendo') {
-        const msg = encodeURIComponent(whatsappTemplate.replace('[nome]', ponto.nome).replace('[data]', ponto.dataTermino).replace('[empreendimento]', ponto.empreendimentoNome));
+        const titulo = '⚠️ Alerta de Vencimento';
+        const corpo = `O ponto ${ponto.nome} vence em 5 dias (${ponto.dataTermino}).`;
         
-        console.log(`Notificação de 5 dias para: ${ponto.nome}`);
-        console.log(`Mensagem: ${decodeURIComponent(msg)}`);
+        console.log(`Disparando notificação para: ${ponto.nome}`);
+        
+        // 1. Notificação Local (Navegador/Celular)
+        if (Notification.permission === 'granted') {
+          new Notification(titulo, {
+            body: corpo,
+            icon: '/assets/logo.png',
+            badge: '/assets/logo.png',
+            tag: `vencimento-${ponto.id}`
+          });
+        }
+
+        // 2. Log de WhatsApp (mantendo a lógica original para referência)
+        const msgWhatsapp = whatsappTemplate
+          .replace('[nome]', ponto.nome)
+          .replace('[data]', ponto.dataTermino)
+          .replace('[empreendimento]', ponto.empreendimentoNome);
+        console.log(`Mensagem WhatsApp preparada: ${msgWhatsapp}`);
         
         // Atualiza no banco que o aviso foi processado
         await db.capitacoes.updateAvisoEnviado(ponto.id.toString());
