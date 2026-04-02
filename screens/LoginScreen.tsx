@@ -7,15 +7,22 @@ interface Props {
   systemName: string;
   logoUrl: string;
   onLogin: () => Promise<void> | void;
+  externalError?: string | null;
 }
 
 const getAvatar = (name: string) => 
   `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}&backgroundColor=0f172a&fontWeight=700&fontSize=45&fontFamily=Inter`;
 
-const LoginScreen: React.FC<Props> = ({ systemName, logoUrl, onLogin }) => {
+const LoginScreen: React.FC<Props> = ({ systemName, logoUrl, onLogin, externalError }) => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (externalError) {
+      setError(externalError);
+    }
+  }, [externalError]);
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -96,7 +103,7 @@ const LoginScreen: React.FC<Props> = ({ systemName, logoUrl, onLogin }) => {
 
       <div className="w-full max-w-md text-center mb-8 animate-in fade-in zoom-in duration-700">
         <div className="inline-flex mb-6">
-          <img src={logoUrl} className="w-32 h-32 rounded-3xl object-cover" alt="Logo" />
+          <img src={logoUrl} className="w-44 h-44 object-contain" alt="Logo" />
         </div>
         <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">
           {systemName}
@@ -203,13 +210,28 @@ const LoginScreen: React.FC<Props> = ({ systemName, logoUrl, onLogin }) => {
           )}
         </form>
 
-        <div className="mt-6 text-center">
+        <div className="mt-6 text-center space-y-4">
           <button 
             type="button"
             onClick={() => setIsRegistering(!isRegistering)}
             className="text-[9px] font-black text-slate-500 uppercase tracking-widest hover:text-sky-400 transition-colors"
           >
             {isRegistering ? 'Já possui conta? Entrar' : 'Novo por aqui? Criar acesso'}
+          </button>
+
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await db.auth.logout();
+                window.location.reload();
+              } catch (err) {
+                console.error("Erro ao sair:", err);
+              }
+            }}
+            className="block w-full text-[8px] font-black text-slate-700 uppercase tracking-widest hover:text-red-400 transition-colors mt-4"
+          >
+            Sair da Conta Atual (Reset)
           </button>
         </div>
       </div>

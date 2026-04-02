@@ -36,7 +36,7 @@ const CategoryBarChart: React.FC<CategoryBarChartProps> = ({ data }) => {
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={data}
-          margin={{ top: 20, right: 10, left: 0, bottom: 0 }}
+          margin={{ top: 20, right: 30, left: 10, bottom: 0 }}
         >
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" opacity={0.5} />
           <XAxis 

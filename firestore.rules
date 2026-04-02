@@ -65,10 +65,13 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() &&
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.cargo == 'Admin' ||
-         (request.auth.token.email == "flaviofabbi@gmail.com" && request.auth.token.email_verified == true) ||
-         (request.auth.token.email == "flavio@gmail.com" && request.auth.token.email_verified == true));
+        (
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.cargo.upper() == 'ADMIN') ||
+          request.auth.token.email == "flaviofabbi@gmail.com" ||
+          request.auth.token.email == "flavio@gmail.com" ||
+          request.auth.token.email == "flaviofabbi@impactox.com"
+        );
     }
 
     function hasRequiredFields(fields) {

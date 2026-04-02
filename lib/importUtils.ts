@@ -25,13 +25,14 @@ export const parseCSV = (file: File): Promise<ImportResult> => {
         
         data.forEach((row, index) => {
           try {
-            if (row.valorContratado !== undefined || row.cnpj !== undefined || row.empreendimentoNome !== undefined) {
+            if (row.valorRepassado !== undefined || row.valorContratado !== undefined || row.cnpj !== undefined || row.empreendimentoNome !== undefined) {
               // Map CSV fields to Capitacao object
+              // Note: CSV headers are now 'valorRepassado' (old valorContratado) and 'valorPago' (old valorRepassado)
               capitacoes.push({
                 nome: row.nome || row.Nome || 'Ponto Sem Nome',
                 cnpj: row.cnpj || row.CNPJ || '',
-                valorContratado: parseFloat(row.valorContratado || row.ValorContratado || '0'),
-                valorRepassado: parseFloat(row.valorRepassado || row.ValorRepassado || '0'),
+                valorContratado: parseFloat(row.valorRepassado || row.valorContratado || row.ValorRepassado || row.ValorContratado || '0'),
+                valorRepassado: parseFloat(row.valorPago || row.valorRepassado_old || row.ValorPago || row.ValorRepassado || '0'),
                 margem: parseFloat(row.margem || row.Margem || '0'),
                 status: (row.status || row.Status || 'ativo').toLowerCase(),
                 empreendimentoId: row.empreendimentoId || row.EmpreendimentoID || '',
@@ -68,7 +69,7 @@ export const parseCSV = (file: File): Promise<ImportResult> => {
 
 export const generateCSVTemplate = (type: 'capitacao' | 'empreendimento'): string => {
   if (type === 'capitacao') {
-    const headers = ['nome', 'cnpj', 'valorContratado', 'valorRepassado', 'margem', 'status', 'empreendimentoNome', 'dataInicio', 'tempoContrato', 'dataTermino'];
+    const headers = ['nome', 'cnpj', 'valorRepassado', 'valorPago', 'margem', 'status', 'empreendimentoNome', 'dataInicio', 'tempoContrato', 'dataTermino'];
     const sample = ['Ponto Exemplo', '12.345.678/0001-90', '50000', '35000', '15000', 'ativo', 'Unidade Central', '2025-01-01', '12', '2026-01-01'];
     return Papa.unparse([headers, sample]);
   } else {
@@ -76,4 +77,21 @@ export const generateCSVTemplate = (type: 'capitacao' | 'empreendimento'): strin
     const sample = ['Unidade Central', 'Dr. Silva', 'ativo', 'contato@central.com', '11999999999', 'Unidade'];
     return Papa.unparse([headers, sample]);
   }
+};
+
+export const formatCurrency = (value: number) => {
+  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
+
+export const calculateStatus = (endDate: string): 'ativo' | 'vencendo' | 'vencido' => {
+  if (!endDate) return 'ativo';
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const end = new Date(endDate + 'T00:00:00');
+  const diffTime = end.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return 'vencido';
+  if (diffDays <= 5) return 'vencendo';
+  return 'ativo';
 };

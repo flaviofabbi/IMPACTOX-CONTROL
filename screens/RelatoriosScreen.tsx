@@ -15,6 +15,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { exportToExcel, exportTableToPDF } from '../src/utils/exportUtils';
+import { formatCurrency, calculateStatus } from '../lib/importUtils';
 import FinanceChart from '../components/FinanceChart';
 import CategoryBarChart from '../components/CategoryBarChart';
 import StatusPieChart from '../components/StatusPieChart';
@@ -107,9 +108,9 @@ const RelatoriosScreen: React.FC<Props> = ({ capitacoes, empreendimentos, logoUr
   }, [empreendimentos]);
 
   const statusData = useMemo(() => {
-    const ativos = filteredItems.filter(c => c.status === 'ativo').length;
-    const vencendo = filteredItems.filter(c => c.status === 'vencendo').length;
-    const vencidos = filteredItems.filter(c => c.status === 'vencido').length;
+    const ativos = filteredItems.filter(c => calculateStatus(c.dataTermino) === 'ativo').length;
+    const vencendo = filteredItems.filter(c => calculateStatus(c.dataTermino) === 'vencendo').length;
+    const vencidos = filteredItems.filter(c => calculateStatus(c.dataTermino) === 'vencido').length;
     const inativos = filteredItems.filter(c => c.status === 'inativo').length;
 
     return [
@@ -120,17 +121,14 @@ const RelatoriosScreen: React.FC<Props> = ({ capitacoes, empreendimentos, logoUr
     ].filter(d => d.value > 0);
   }, [filteredItems]);
 
-  const formatCurrency = (value: number) => {
-    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  };
 
   const handleExportExcel = () => {
     const exportData = filteredItems.map(item => ({
       Nome: item.nome,
       CNPJ: item.cnpj,
       Empreendimento: item.empreendimentoNome,
-      'Valor Contratado': item.valorContratado,
-      'Valor Repassado': item.valorRepassado,
+      'Valor Repassado': item.valorContratado,
+      'Valor Pago': item.valorRepassado,
       Margem: item.margem,
       Status: item.status,
       Renovado: item.renovado ? 'Sim' : 'Não',
@@ -193,7 +191,7 @@ const RelatoriosScreen: React.FC<Props> = ({ capitacoes, empreendimentos, logoUr
              <div className="px-3 py-1.5 md:px-4 md:py-2 bg-white/10 rounded-xl backdrop-blur-md border border-white/10">
                <p className="text-[7px] md:text-[8px] font-black text-emerald-100 uppercase tracking-widest">ROI Estimado</p>
                <p className="text-xs md:text-sm font-bold text-white">
-                 {totals.repassado ? ((totals.margem / totals.repassado) * 100).toFixed(1) : 0}%
+                 {totals.contratado ? ((totals.margem / totals.contratado) * 100).toFixed(1) : 0}%
                </p>
              </div>
            </div>
@@ -204,7 +202,7 @@ const RelatoriosScreen: React.FC<Props> = ({ capitacoes, empreendimentos, logoUr
             <DollarSign size={20} className="md:w-6 md:h-6" />
           </div>
           <div className="w-full">
-            <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Total Contratado</p>
+            <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Total Repassado</p>
             <p className="text-sm md:text-base lg:text-xl font-black text-white italic break-words">{formatCurrency(totals.contratado)}</p>
           </div>
         </div>
@@ -231,7 +229,7 @@ const RelatoriosScreen: React.FC<Props> = ({ capitacoes, empreendimentos, logoUr
                 </h3>
               </div>
             </div>
-            <div className="h-[220px]">
+            <div className="h-[200px]">
               <FinanceChart data={chartData} />
             </div>
           </div>
@@ -245,7 +243,7 @@ const RelatoriosScreen: React.FC<Props> = ({ capitacoes, empreendimentos, logoUr
                 </h3>
               </div>
             </div>
-            <div className="h-[220px]">
+            <div className="h-[200px]">
               <CategoryBarChart data={categoryData} />
             </div>
           </div>
@@ -259,7 +257,7 @@ const RelatoriosScreen: React.FC<Props> = ({ capitacoes, empreendimentos, logoUr
                 </h3>
               </div>
             </div>
-            <div className="h-[220px]">
+            <div className="h-[200px]">
               <StatusPieChart data={statusData} />
             </div>
           </div>
@@ -367,7 +365,7 @@ const RelatoriosScreen: React.FC<Props> = ({ capitacoes, empreendimentos, logoUr
               <tr className="border-b border-slate-800">
                 <th className="pb-4 px-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Ponto / CNPJ</th>
                 <th className="pb-4 px-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">Unidade / Categoria</th>
-                <th className="pb-4 px-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Vencimento</th>
+                <th className="pb-4 px-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">Vencimento</th>
                 <th className="pb-4 px-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">Renovado</th>
                 <th className="pb-4 px-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">Margem</th>
                 <th className="pb-4 px-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">Status</th>
@@ -383,8 +381,8 @@ const RelatoriosScreen: React.FC<Props> = ({ capitacoes, empreendimentos, logoUr
                   <td className="py-5 px-4 text-center">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{item.empreendimentoNome}</span>
                   </td>
-                  <td className="py-5 px-4">
-                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-300 font-mono">
+                  <td className="py-5 px-4 text-center">
+                    <div className="flex items-center justify-center gap-2 text-[10px] font-bold text-slate-300 font-mono">
                       <Calendar size={12} className="text-slate-500" />
                       {item.dataTermino}
                     </div>
@@ -402,12 +400,12 @@ const RelatoriosScreen: React.FC<Props> = ({ capitacoes, empreendimentos, logoUr
                   </td>
                   <td className="py-5 px-4 text-center">
                     <span className={`px-3 py-1 rounded-full text-[7px] font-black uppercase tracking-widest border ${
-                      item.status === 'ativo' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
-                      item.status === 'vencendo' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                      item.status === 'vencido' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' :
+                      calculateStatus(item.dataTermino) === 'ativo' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                      calculateStatus(item.dataTermino) === 'vencendo' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                      calculateStatus(item.dataTermino) === 'vencido' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' :
                       'bg-slate-800 text-slate-400 border-slate-700'
                     }`}>
-                      {item.status}
+                      {calculateStatus(item.dataTermino)}
                     </span>
                   </td>
                 </tr>

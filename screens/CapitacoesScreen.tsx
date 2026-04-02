@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Capitacao, Empreendimento } from '../types';
 import { Search, Trash2, Hash, Briefcase, CheckCircle, CircleX, Filter, Activity, Pencil, Calendar, Send, FileSpreadsheet, FileText, RotateCcw, Globe } from 'lucide-react';
 import { exportToExcel, exportTableToPDF } from '../src/utils/exportUtils';
+import { formatCurrency, calculateStatus } from '../lib/importUtils';
 import { usePersistentFilters } from '../src/hooks/usePersistentFilters';
 
 interface Props {
@@ -64,17 +65,14 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDele
     return capitacoes.some(c => c.status === 'inativo');
   }, [capitacoes]);
 
-  const formatCurrency = (value: number) => {
-    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  };
 
   const handleExportExcel = () => {
     const exportData = filteredItems.map(item => ({
       Nome: item.nome,
       CNPJ: item.cnpj,
       Empreendimento: item.empreendimentoNome,
-      'Valor Contratado': item.valorContratado,
-      'Valor Repassado': item.valorRepassado,
+      'Valor Repassado': item.valorContratado,
+      'Valor Pago': item.valorRepassado,
       Margem: item.margem,
       Status: item.status,
       'Data Término': item.dataTermino
@@ -246,9 +244,10 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDele
 
       <div className="flex flex-col gap-3">
         {filteredItems.map((item) => {
-          const isAtivo = item.status === 'ativo';
-          const isVencendo = item.status === 'vencendo';
-          const isVencido = item.status === 'vencido';
+          const currentStatus = calculateStatus(item.dataTermino);
+          const isAtivo = currentStatus === 'ativo';
+          const isVencendo = currentStatus === 'vencendo';
+          const isVencido = currentStatus === 'vencido';
 
           const statusColor = isAtivo ? 'bg-emerald-500' : 
                              isVencendo ? 'bg-amber-500' :
@@ -273,7 +272,7 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDele
                       isVencido ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
                       'bg-slate-800 text-slate-500 border-slate-700'
                     }`}>
-                      {item.status}
+                      {currentStatus}
                     </span>
                   </div>
                   
@@ -303,13 +302,20 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDele
                 {/* Values Section */}
                 <div className="flex items-center justify-between md:justify-end gap-6 md:gap-10 border-t md:border-t-0 md:border-l border-slate-800/50 pt-3 md:pt-0 md:pl-6">
                   <div className="text-left md:text-right">
-                    <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Valor Contratado</p>
+                    <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Valor Repassado</p>
                     <p className="text-sm font-black text-white tracking-tight">{formatCurrency(item.valorContratado)}</p>
-                    <div className="flex items-center md:justify-end gap-1.5 mt-0.5">
-                      <p className={`text-[9px] font-black ${item.margem >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        M: {formatCurrency(item.margem)}
-                      </p>
-                    </div>
+                  </div>
+
+                  <div className="text-left md:text-right">
+                    <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Valor Pago</p>
+                    <p className="text-sm font-black text-white tracking-tight">{formatCurrency(item.valorRepassado)}</p>
+                  </div>
+
+                  <div className="text-left md:text-right">
+                    <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Margem</p>
+                    <p className={`text-sm font-black tracking-tight ${item.margem >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {formatCurrency(item.margem)}
+                    </p>
                   </div>
 
                   {/* Quick Actions */}

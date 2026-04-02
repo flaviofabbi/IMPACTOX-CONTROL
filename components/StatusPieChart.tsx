@@ -57,8 +57,8 @@ const StatusPieChart: React.FC<StatusPieChartProps> = ({ data }) => {
             cy="50%"
             labelLine={false}
             label={renderCustomizedLabel}
-            outerRadius={80}
-            innerRadius={60}
+            outerRadius={65}
+            innerRadius={45}
             paddingAngle={8}
             fill="#8884d8"
             dataKey="value"

@@ -147,7 +147,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, logoU
         <div className="p-8 flex flex-col items-center gap-4 pt-10 mb-2">
           <div onClick={handleLogoClick} className="relative cursor-pointer group">
             <div className="transition-all group-hover:scale-105">
-              <img src={logoUrl} className="w-32 h-32 rounded-[2rem] object-cover" />
+              <img src={logoUrl} className="w-40 h-40 object-contain" />
             </div>
             <div className="absolute -bottom-1 -right-1 bg-emerald-500 p-1.5 rounded-full border-4 border-[#020617] shadow-xl">
                <ShieldCheck size={14} className="text-white" />

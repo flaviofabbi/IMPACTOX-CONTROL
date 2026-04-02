@@ -37,6 +37,7 @@ import {
   Legend
 } from 'recharts';
 import { exportToExcel, exportElementToPDF } from '../src/utils/exportUtils';
+import { formatCurrency, calculateStatus } from '../lib/importUtils';
 import { FileSpreadsheet, FileText, Download } from 'lucide-react';
 
 interface Props {
@@ -70,9 +71,9 @@ const DashboardScreen: React.FC<Props> = ({
     const totalRepassado = filtered.reduce((a, b: Capitacao) => a + (Number(b.valorRepassado) || 0), 0);
     const totalMargem = filtered.reduce((a, b: Capitacao) => a + (Number(b.margem) || 0), 0);
     
-    const ativos = filtered.filter((c: Capitacao) => c.status === 'ativo').length;
-    const vencendo = filtered.filter((c: Capitacao) => c.status === 'vencendo').length;
-    const vencidos = filtered.filter((c: Capitacao) => c.status === 'vencido').length;
+    const ativos = filtered.filter((c: Capitacao) => calculateStatus(c.dataTermino) === 'ativo').length;
+    const vencendo = filtered.filter((c: Capitacao) => calculateStatus(c.dataTermino) === 'vencendo').length;
+    const vencidos = filtered.filter((c: Capitacao) => calculateStatus(c.dataTermino) === 'vencido').length;
     const inativos = filtered.filter((c: Capitacao) => c.status === 'inativo').length;
 
     const statusData = [
@@ -136,11 +137,21 @@ const DashboardScreen: React.FC<Props> = ({
 
     const globalTotalMargem = safeCapitacoes.reduce((a, b: Capitacao) => a + (Number(b.margem) || 0), 0);
 
+    const avgPercentual = filtered.length > 0
+      ? filtered.reduce((acc, curr) => {
+          const margem = Number(curr.margem) || 0;
+          const valorContratado = Number(curr.valorContratado) || 0;
+          const p = valorContratado > 0 ? (margem / valorContratado) * 100 : 0;
+          return acc + p;
+        }, 0) / filtered.length
+      : 0;
+
     return {
       totalContratado,
       totalRepassado,
       totalMargem,
       globalTotalMargem,
+      avgPercentual,
       ativos,
       vencendo,
       vencidos,
@@ -215,17 +226,14 @@ const DashboardScreen: React.FC<Props> = ({
     );
   }
 
-  const formatCurrency = (value: number) => {
-    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  };
 
   const handleExportExcel = () => {
     const exportData = (stats.displayData as Capitacao[]).map(p => ({
       Nome: p.nome,
       CNPJ: p.cnpj,
       Empreendimento: p.empreendimentoNome,
-      'Valor Contratado': p.valorContratado,
-      'Valor Repassado': p.valorRepassado,
+      'Valor Repassado': p.valorContratado,
+      'Valor Pago': p.valorRepassado,
       Margem: p.margem,
       Status: p.status,
       'Data Término': p.dataTermino
@@ -327,20 +335,23 @@ const DashboardScreen: React.FC<Props> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-6 gap-3 md:gap-4 mb-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <StatCard title="Total Contratado" value={formatCurrency(stats.totalContratado)} icon={<DollarSign />} color="bg-sky-600" chartData={stats.contratadoSparkline} trend="+12.5%" trendUp={true} />
+          <StatCard title="Total Repassado" value={formatCurrency(stats.totalContratado)} icon={<DollarSign />} color="bg-sky-600" chartData={stats.contratadoSparkline} trend="+12.5%" trendUp={true} />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <StatCard title="Margem (Filtro)" value={formatCurrency(stats.totalMargem)} icon={<TrendingUp />} color="bg-emerald-600" chartData={stats.margemSparkline} trend="+5.2%" trendUp={true} />
+          <StatCard title="Total Pago" value={formatCurrency(stats.totalRepassado)} icon={<TrendingUp />} color="bg-emerald-600" chartData={stats.margemSparkline} trend="+5.2%" trendUp={true} />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-          <StatCard title="Margem Total Geral" value={formatCurrency(stats.globalTotalMargem)} icon={<Activity />} color="bg-indigo-600" chartData={stats.globalSparkline} trend="+8.1%" trendUp={true} />
+          <StatCard title="Margem Total" value={formatCurrency(stats.totalMargem)} icon={<Activity />} color="bg-indigo-600" chartData={stats.globalSparkline} trend="+8.1%" trendUp={true} />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-          <StatCard title="Vencendo (30d)" value={stats.vencendo.toString()} icon={<Timer />} color="bg-amber-600" trend="-0.8%" trendUp={false} />
+          <StatCard title="Média Lucro %" value={`${stats.avgPercentual.toFixed(1)}%`} icon={<TrendingUp />} color={stats.avgPercentual >= 18 ? 'bg-emerald-600' : 'bg-rose-600'} trend={stats.avgPercentual >= 18 ? 'Acima 18%' : 'Abaixo 18%'} trendUp={stats.avgPercentual >= 18} />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
+          <StatCard title="Vencendo (5d)" value={stats.vencendo.toString()} icon={<Timer />} color="bg-amber-600" trend="-0.8%" trendUp={false} />
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
           <StatCard title="Vencidos" value={stats.vencidos.toString()} icon={<AlertCircle />} color="bg-rose-600" />
         </motion.div>
       </div>
@@ -538,8 +549,8 @@ const DashboardScreen: React.FC<Props> = ({
                       data={stats.statusData.filter(s => s.value > 0)}
                       cx="50%"
                       cy="50%"
-                      innerRadius={70}
-                      outerRadius={95}
+                      innerRadius={50}
+                      outerRadius={65}
                       paddingAngle={8}
                       dataKey="value"
                       stroke="none"
@@ -591,9 +602,9 @@ const DashboardScreen: React.FC<Props> = ({
               <thead>
                 <tr className="border-b border-sky-500/10">
                   <th className="pb-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Ponto</th>
-                  <th className="pb-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Margem</th>
-                  <th className="pb-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">%</th>
-                  <th className="pb-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Status</th>
+                  <th className="pb-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">Margem</th>
+                  <th className="pb-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">%</th>
+                  <th className="pb-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-sky-500/5">
@@ -604,16 +615,18 @@ const DashboardScreen: React.FC<Props> = ({
                       <td className="py-4">
                         <p className="text-[10px] font-black text-white uppercase truncate max-w-[200px] italic">{p.name}</p>
                       </td>
-                      <td className="py-4 text-[10px] font-bold text-emerald-400 font-mono">{formatCurrency(p.margem)}</td>
-                      <td className="py-4 text-[10px] font-bold text-slate-400 font-mono">{original?.percentual?.toFixed(1)}%</td>
-                      <td className="py-4">
+                      <td className="py-4 text-[10px] font-bold text-emerald-400 font-mono text-center">{formatCurrency(p.margem)}</td>
+                      <td className="py-4 text-[10px] font-bold text-slate-400 font-mono text-center">{original?.percentual?.toFixed(1)}%</td>
+                      <td className="py-4 text-center">
                         <span className={`px-3 py-1 rounded-full text-[7px] font-black uppercase tracking-widest border ${
-                          original?.status === 'ativo' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
-                          original?.status === 'vencendo' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                          original?.status === 'vencido' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' :
-                          'bg-slate-800 text-slate-400 border-slate-700'
+                          original ? (
+                            calculateStatus(original.dataTermino) === 'ativo' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                            calculateStatus(original.dataTermino) === 'vencendo' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                            calculateStatus(original.dataTermino) === 'vencido' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' :
+                            'bg-slate-800 text-slate-400 border-slate-700'
+                          ) : 'bg-slate-800 text-slate-400 border-slate-700'
                         }`}>
-                          {original?.status}
+                          {original ? calculateStatus(original.dataTermino) : 'inativo'}
                         </span>
                       </td>
                     </tr>

@@ -35,6 +35,7 @@ const App: React.FC = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [onlineUsersCount, setOnlineUsersCount] = useState(1);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
     const savedLogo = localStorage.getItem('impacto_logo');
@@ -51,9 +52,13 @@ const App: React.FC = () => {
 
     const unsubscribeAuth = db.auth.onAuthStateChanged(async (user) => {
       try {
+        setAuthError(null);
         if (user) {
+          console.log("Usuário autenticado:", user.email, user.uid);
           let profile = await db.users.getProfile(user.uid);
+          
           if (!profile) {
+            console.log("Perfil não encontrado, criando novo...");
             profile = {
               id: user.uid,
               nome: user.isAnonymous ? 'Visitante' : (user.displayName || user.email?.split('@')[0] || 'Operador'),
@@ -62,7 +67,15 @@ const App: React.FC = () => {
               avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${user.uid}`,
               cor: 'from-sky-500 to-blue-700'
             };
-            await db.users.setProfile(user.uid, profile);
+            try {
+              await db.users.setProfile(user.uid, profile);
+            } catch (err: any) {
+              console.error("Erro ao criar perfil:", err);
+              setAuthError("Erro ao criar perfil de usuário. Verifique as permissões.");
+              setCurrentUser(null);
+              setIsInitializing(false);
+              return;
+            }
           }
           setCurrentUser(profile);
           await db.users.updatePresence(user.uid, true);
@@ -71,8 +84,9 @@ const App: React.FC = () => {
           setCapitacoes([]);
           setEmpreendimentos([]);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Erro na inicialização de perfil:", err);
+        setAuthError("Erro ao carregar perfil de usuário. Tente novamente.");
       } finally {
         setIsInitializing(false);
         clearTimeout(timeout);
@@ -344,12 +358,15 @@ const App: React.FC = () => {
       <LoginScreen 
         systemName={systemName} 
         logoUrl={logoUrl}
+        externalError={authError}
         onLogin={async () => {
           try {
+            setAuthError(null);
             setIsInitializing(true);
             await db.auth.loginWithGoogle();
-          } catch (e) {
+          } catch (e: any) {
             console.error("Erro no login Google:", e);
+            setAuthError("Erro ao entrar com Google. Tente novamente.");
             setIsInitializing(false);
           }
         }} 

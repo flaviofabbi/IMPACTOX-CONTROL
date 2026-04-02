@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Save, X, DollarSign, MapPin, Briefcase, TrendingUp, Activity, FileText, Calendar, Timer, Hash, Pencil, AlertCircle, Loader2, Globe, CheckCircle2, XCircle, User } from 'lucide-react';
 import { Capitacao, Empreendimento } from '../types';
+import { calculateStatus } from '../lib/importUtils';
 
 interface Props {
   empreendimentos: Empreendimento[];
@@ -149,18 +150,6 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, ini
     return date.toISOString().split('T')[0];
   };
 
-  const calculateStatus = (endDate: string) => {
-    if (!endDate) return 'ativo';
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const end = new Date(endDate + 'T00:00:00');
-    const diffTime = end.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays < 0) return 'vencido';
-    if (diffDays <= 5) return 'vencendo';
-    return 'ativo';
-  };
 
   useEffect(() => {
     if (isEditing && initialData) {
@@ -529,7 +518,7 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, ini
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Valor Contratado</label>
+              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Valor Repassado</label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-sky-500">R$</span>
                 <input 
@@ -543,7 +532,7 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, ini
               </div>
             </div>
             <div>
-              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Valor Repassado</label>
+              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Valor Pago</label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400">R$</span>
                 <input 
@@ -561,6 +550,13 @@ const NovaCapitacaoScreen: React.FC<Props> = ({ empreendimentos, capitacoes, ini
               <div className={`w-full px-4 py-3.5 bg-slate-950/80 border border-sky-500/5 rounded-xl text-xs font-black flex items-center gap-2 ${formData.margem >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                 {formData.margem >= 0 ? <TrendingUp size={14} /> : <AlertCircle size={14} />}
                 R$ {formData.margem.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </div>
+            </div>
+            <div>
+              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Percentual de Lucro</label>
+              <div className={`w-full px-4 py-3.5 bg-slate-950/80 border border-sky-500/5 rounded-xl text-xs font-black flex items-center gap-2 ${formData.percentual >= 18 ? 'text-emerald-400' : 'text-rose-500'}`}>
+                {formData.percentual >= 18 ? <TrendingUp size={14} /> : <AlertCircle size={14} />}
+                {formData.percentual.toFixed(2)}%
               </div>
             </div>
             
