@@ -19,6 +19,7 @@ import {
   BarChart as BarChartIcon,
   ArrowRight,
   Plus,
+  RotateCcw,
   Database,
   MessageSquare,
   Check
@@ -57,15 +58,26 @@ const DashboardScreen: React.FC<Props> = ({
   whatsappTemplate
 }) => {
   const [filterEmp, setFilterEmp] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'ativo' | 'vencendo' | 'vencido' | 'inativo'>('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const stats = useMemo(() => {
     // Ensure capitacoes is an array
     const safeCapitacoes: Capitacao[] = Array.isArray(capitacoes) ? capitacoes : Object.values(capitacoes || {});
     
-    const filtered = filterEmp === 'all' 
-      ? safeCapitacoes 
-      : safeCapitacoes.filter((c: Capitacao) => String(c.empreendimentoId) === String(filterEmp));
+    const filtered = safeCapitacoes.filter((c: Capitacao) => {
+      const matchesEmp = filterEmp === 'all' || String(c.empreendimentoId) === String(filterEmp);
+      
+      const currentStatus = calculateStatus(c.dataTermino);
+      const matchesStatus = statusFilter === 'all' || (statusFilter === 'inativo' ? c.status === 'inativo' : currentStatus === statusFilter);
+      
+      const matchesDate = (startDate === '' || c.dataTermino >= startDate) && 
+                         (endDate === '' || c.dataTermino <= endDate);
+      
+      return matchesEmp && matchesStatus && matchesDate;
+    });
     
     const totalContratado = filtered.reduce((a, b: Capitacao) => a + (Number(b.valorContratado) || 0), 0);
     const totalRepassado = filtered.reduce((a, b: Capitacao) => a + (Number(b.valorRepassado) || 0), 0);
@@ -300,38 +312,92 @@ const DashboardScreen: React.FC<Props> = ({
         </div>
       </div>
       
-      <div className="mb-8 flex flex-wrap items-center gap-4 bg-slate-900/40 p-4 rounded-[2rem] border border-slate-800">
-        <div className="flex-1 min-w-[200px]">
-          <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Filtro por Empreendimento</label>
-          <select 
-            value={filterEmp}
-            onChange={(e) => setFilterEmp(e.target.value)}
-            className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-2.5 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20 transition-all appearance-none cursor-pointer"
-          >
-            <option value="all">Todos Empreendimentos</option>
-            {stats.empreendimentosUnicos.map(emp => (
-              <option key={emp.id} value={emp.id}>{emp.nome}</option>
-            ))}
-          </select>
+      <div className="mb-8 bg-slate-900/40 p-6 rounded-[2.5rem] border border-slate-800">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div>
+            <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Empreendimento</label>
+            <select 
+              value={filterEmp}
+              onChange={(e) => setFilterEmp(e.target.value)}
+              className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-2.5 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20 transition-all appearance-none cursor-pointer"
+            >
+              <option value="all">Todos Empreendimentos</option>
+              {stats.empreendimentosUnicos.map(emp => (
+                <option key={emp.id} value={emp.id}>{emp.nome}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Status do Contrato</label>
+            <select 
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-2.5 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20 transition-all appearance-none cursor-pointer"
+            >
+              <option value="all">Todos Status</option>
+              <option value="ativo">Ativos</option>
+              <option value="vencendo">Vencendo (5 dias)</option>
+              <option value="vencido">Vencidos</option>
+              <option value="inativo">Inativos</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Vencimento (De)</label>
+            <input 
+              type="date" 
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-2.5 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Vencimento (Até)</label>
+            <input 
+              type="date" 
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-2.5 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
+            />
+          </div>
         </div>
         
-        <div className="flex items-center gap-2">
-          {onGenerateSampleData && (
+        <div className="flex items-center justify-between border-t border-slate-800 pt-4">
+          <div className="flex items-center gap-2">
             <button 
-              onClick={onGenerateSampleData}
-              className="bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[9px] font-black uppercase tracking-widest px-5 py-2.5 rounded-xl hover:bg-amber-500 hover:text-white transition-all flex items-center gap-2 shadow-lg shadow-amber-900/10 active:scale-95"
+              onClick={() => {
+                setFilterEmp('all');
+                setStatusFilter('all');
+                setStartDate('');
+                setEndDate('');
+              }}
+              className="bg-slate-800 border border-slate-700 text-slate-400 text-[9px] font-black uppercase tracking-widest px-5 py-2.5 rounded-xl hover:bg-slate-700 hover:text-white transition-all flex items-center gap-2 active:scale-95"
             >
-              <Plus size={14} />
-              Simular Dados
+              <RotateCcw size={14} />
+              Limpar Filtros
             </button>
-          )}
-          <button 
-            onClick={() => window.location.reload()}
-            className="bg-slate-800 border border-slate-700 text-slate-400 text-[9px] font-black uppercase tracking-widest px-5 py-2.5 rounded-xl hover:bg-slate-700 hover:text-white transition-all flex items-center gap-2 active:scale-95"
-          >
-            <Activity size={14} />
-            Atualizar
-          </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {onGenerateSampleData && (
+              <button 
+                onClick={onGenerateSampleData}
+                className="bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[9px] font-black uppercase tracking-widest px-5 py-2.5 rounded-xl hover:bg-amber-500 hover:text-white transition-all flex items-center gap-2 shadow-lg shadow-amber-900/10 active:scale-95"
+              >
+                <Plus size={14} />
+                Simular Dados
+              </button>
+            )}
+            <button 
+              onClick={() => window.location.reload()}
+              className="bg-slate-800 border border-slate-700 text-slate-400 text-[9px] font-black uppercase tracking-widest px-5 py-2.5 rounded-xl hover:bg-slate-700 hover:text-white transition-all flex items-center gap-2 active:scale-95"
+            >
+              <Activity size={14} />
+              Atualizar
+            </button>
+          </div>
         </div>
       </div>
 

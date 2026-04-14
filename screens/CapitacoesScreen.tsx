@@ -123,17 +123,8 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDele
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <div className="flex flex-wrap gap-2 items-center">
-          {hasInactive && onDeleteInactive && (
-            <button 
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDeleteInactive(); }}
-              className="flex items-center gap-2 px-4 py-2 bg-rose-600/20 text-rose-400 border border-rose-500/30 rounded-xl font-black hover:bg-rose-600 hover:text-white transition-all text-[9px] uppercase tracking-widest shadow-lg shadow-rose-900/20 active:scale-95 cursor-pointer relative z-50 pointer-events-auto"
-            >
-              <Trash2 size={14} /> Limpar Inativos
-            </button>
-          )}
-
+      <div className="flex flex-col gap-6 mb-8">
+        <div className="flex flex-wrap gap-3 items-center">
           <div className="flex bg-slate-950/80 p-1.5 rounded-2xl border border-slate-800 shadow-xl backdrop-blur-md">
             <button onClick={() => setFilters({ status: 'all' })} className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${filters.status === 'all' ? 'bg-sky-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>Todos</button>
             <button onClick={() => setFilters({ status: 'ativo' })} className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${filters.status === 'ativo' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-emerald-400'}`}>Ativos</button>
@@ -142,38 +133,77 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDele
             <button onClick={() => setFilters({ status: 'inativo' })} className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${filters.status === 'inativo' ? 'bg-slate-700 text-white shadow-lg' : 'text-slate-500 hover:text-slate-400'}`}>Inativos</button>
           </div>
 
-          <button 
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black transition-all text-[9px] uppercase tracking-widest border ${showAdvanced ? 'bg-sky-600 text-white border-sky-500' : 'bg-slate-900/50 text-slate-400 border-slate-800 hover:border-sky-500/30'}`}
-          >
-            <Filter size={14} /> {showAdvanced ? 'Ocultar Filtros' : 'Filtros Avançados'}
-          </button>
-
-          <button 
-            onClick={resetFilters}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl font-black transition-all text-[9px] uppercase tracking-widest border bg-slate-900/50 text-slate-400 border-slate-800 hover:text-rose-400 hover:border-rose-500/30"
-            title="Resetar Filtros"
-          >
-            <RotateCcw size={14} />
-          </button>
-        </div>
-      </div>
-
-      {showAdvanced && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 p-6 bg-slate-900/40 rounded-[2rem] border border-slate-800 animate-in slide-in-from-top-4 duration-300">
-          <div>
-            <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Empreendimento</label>
+          <div className="flex-1 min-w-[200px]">
             <select 
               value={filters.empId}
               onChange={(e) => setFilters({ empId: e.target.value })}
-              className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20 transition-all appearance-none cursor-pointer"
+              className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-2 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20 transition-all appearance-none cursor-pointer h-[38px]"
             >
-              <option value="all">Todos</option>
+              <option value="all">Todos Empreendimentos</option>
               {empreendimentos.map(emp => (
                 <option key={emp.id} value={emp.id}>{emp.nome}</option>
               ))}
             </select>
           </div>
+
+          <button 
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black transition-all text-[9px] uppercase tracking-widest border h-[38px] ${showAdvanced ? 'bg-sky-600 text-white border-sky-500' : 'bg-slate-900/50 text-slate-400 border-slate-800 hover:border-sky-500/30'}`}
+          >
+            <Filter size={14} /> {showAdvanced ? 'Menos Filtros' : 'Mais Filtros'}
+          </button>
+
+          <button 
+            onClick={resetFilters}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl font-black transition-all text-[9px] uppercase tracking-widest border bg-slate-900/50 text-slate-400 border-slate-800 hover:text-rose-400 hover:border-rose-500/30 h-[38px]"
+            title="Resetar Filtros"
+          >
+            <RotateCcw size={14} />
+          </button>
+
+          {hasInactive && onDeleteInactive && (
+            <button 
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDeleteInactive(); }}
+              className="flex items-center gap-2 px-4 py-2 bg-rose-600/20 text-rose-400 border border-rose-500/30 rounded-xl font-black hover:bg-rose-600 hover:text-white transition-all text-[9px] uppercase tracking-widest shadow-lg shadow-rose-900/20 active:scale-95 cursor-pointer h-[38px]"
+            >
+              <Trash2 size={14} /> Limpar Inativos
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex items-center gap-3 bg-slate-900/40 p-2 rounded-2xl border border-slate-800">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-2">Vencimento:</span>
+            <input 
+              type="date" 
+              value={filters.startDate}
+              onChange={(e) => setFilters({ startDate: e.target.value })}
+              className="flex-1 bg-slate-950/50 border border-slate-800 rounded-xl px-3 py-1.5 text-white text-[9px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
+            />
+            <span className="text-slate-600 text-[9px] font-black">ATÉ</span>
+            <input 
+              type="date" 
+              value={filters.endDate}
+              onChange={(e) => setFilters({ endDate: e.target.value })}
+              className="flex-1 bg-slate-950/50 border border-slate-800 rounded-xl px-3 py-1.5 text-white text-[9px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
+            />
+          </div>
+          
+          <div className="relative">
+            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+            <input 
+              type="text" 
+              placeholder="Busca rápida por nome ou CNPJ..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-12 pr-4 py-3 bg-slate-900/50 border border-slate-800 rounded-2xl text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition-all text-[10px] font-bold uppercase tracking-widest h-[46px]"
+            />
+          </div>
+        </div>
+      </div>
+
+      {showAdvanced && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 p-6 bg-slate-900/40 rounded-[2rem] border border-slate-800 animate-in slide-in-from-top-4 duration-300">
           <div>
             <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Tipo de Empreendimento</label>
             <select 
@@ -189,24 +219,6 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDele
               <option value="Hospitalar">Hospitalar</option>
               <option value="Outros">Outros</option>
             </select>
-          </div>
-          <div>
-            <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Vencimento (De)</label>
-            <input 
-              type="date" 
-              value={filters.startDate}
-              onChange={(e) => setFilters({ startDate: e.target.value })}
-              className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
-            />
-          </div>
-          <div>
-            <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Vencimento (Até)</label>
-            <input 
-              type="date" 
-              value={filters.endDate}
-              onChange={(e) => setFilters({ endDate: e.target.value })}
-              className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
-            />
           </div>
           <div>
             <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Valor Mínimo</label>
@@ -231,16 +243,6 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDele
         </div>
       )}
 
-      <div className="relative mb-6">
-        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
-        <input 
-          type="text" 
-          placeholder="Busca rápida..." 
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-12 pr-4 py-4 bg-slate-900/50 border border-slate-800 rounded-[1.5rem] text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition-all text-xs font-medium"
-        />
-      </div>
 
       <div className="flex flex-col gap-3">
         {filteredItems.map((item) => {

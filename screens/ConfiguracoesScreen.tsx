@@ -25,6 +25,7 @@ interface Props {
   onLogoChange: (url: string) => void;
   whatsappTemplate: string;
   onWhatsappTemplateChange: (template: string) => void;
+  onCheckVencimentos?: () => Promise<void>;
 }
 
 const GRADIENTS = [
@@ -45,7 +46,8 @@ const ConfiguracoesScreen: React.FC<Props> = ({
   onLogout, onImport, onImportFile, onCloudExport, onCloudImport, 
   capitacoes, empreendimentos, accessLogs, isSyncing, lastSync, onSync,
   systemName, onSystemNameChange, logoUrl, onLogoChange,
-  whatsappTemplate, onWhatsappTemplateChange
+  whatsappTemplate, onWhatsappTemplateChange,
+  onCheckVencimentos
 }) => {
   const [dbId, setDbId] = useState(() => localStorage.getItem('ix_db_id') || 'DB-' + Math.random().toString(36).substr(2, 6).toUpperCase());
   const [editingUser, setEditingUser] = useState<UserProfile | Partial<UserProfile> | null>(null);
@@ -394,12 +396,15 @@ const ConfiguracoesScreen: React.FC<Props> = ({
 
             <button 
               onClick={async () => {
-                // Esta função será implementada no App.tsx e passada via props ou injetada
-                // Por enquanto, simulamos o disparo
                 if (window.confirm('Deseja executar a verificação de vencimentos agora?')) {
-                  const event = new CustomEvent('trigger-vencimento-check');
-                  window.dispatchEvent(event);
-                  alert('Verificação iniciada! O sistema processará os contratos em segundo plano.');
+                  if (onCheckVencimentos) {
+                    await onCheckVencimentos();
+                    alert('Verificação concluída com sucesso!');
+                  } else {
+                    const event = new CustomEvent('trigger-vencimento-check');
+                    window.dispatchEvent(event);
+                    alert('Verificação iniciada! O sistema processará os contratos em segundo plano.');
+                  }
                 }
               }}
               className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2"

@@ -9,10 +9,10 @@ import NovoEmpreendimentoScreen from './screens/NovoEmpreendimentoScreen';
 import RelatoriosScreen from './screens/RelatoriosScreen';
 import ConfiguracoesScreen from './screens/ConfiguracoesScreen';
 import LoginScreen from './screens/LoginScreen';
+import { AlertCircle } from 'lucide-react';
 import { db, testFirestoreConnection } from './lib/database';
 import ErrorBoundary from './components/ErrorBoundary';
 import { parseCSV } from './lib/importUtils';
-import { messaging, getToken, onMessage } from './firebase';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AppTab>('Dashboard');
@@ -44,44 +44,6 @@ const App: React.FC = () => {
     
     testFirestoreConnection();
 
-    // Registrar Service Worker e solicitar permissão para notificações
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js')
-        .then((registration) => {
-          console.log('Service Worker registrado com sucesso:', registration.scope);
-          
-          // Solicitar permissão para notificações
-          if (Notification.permission === 'default') {
-            Notification.requestPermission().then(permission => {
-              if (permission === 'granted') {
-                console.log('Permissão para notificações concedida.');
-                if (messaging) {
-                  getToken(messaging, { serviceWorkerRegistration: registration })
-                    .then((token) => {
-                      console.log('FCM Token:', token);
-                      // Aqui você poderia salvar o token no Firestore para enviar notificações via Cloud Functions
-                    });
-                }
-              }
-            });
-          }
-        })
-        .catch((err) => console.error('Erro ao registrar Service Worker:', err));
-    }
-
-    // Ouvir mensagens quando o app está em primeiro plano
-    if (messaging) {
-      onMessage(messaging, (payload) => {
-        console.log('Mensagem recebida em primeiro plano:', payload);
-        if (payload.notification) {
-          new Notification(payload.notification.title || 'Alerta', {
-            body: payload.notification.body,
-            icon: '/assets/logo.png'
-          });
-        }
-      });
-    }
-
     const timeout = setTimeout(() => {
       if (isInitializing) {
         console.warn("Initialization timed out, forcing login screen");
@@ -96,13 +58,20 @@ const App: React.FC = () => {
           console.log("Usuário autenticado:", user.email, user.uid);
           let profile = await db.users.getProfile(user.uid);
           
+          const adminEmails = [
+            "flaviofabbi@gmail.com",
+            "flavio@gmail.com",
+            "flaviofabbi@impactox.com"
+          ];
+          const isAdminEmail = adminEmails.includes(user.email?.toLowerCase() || "");
+
           if (!profile) {
             console.log("Perfil não encontrado, criando novo...");
             profile = {
               id: user.uid,
               nome: user.isAnonymous ? 'Visitante' : (user.displayName || user.email?.split('@')[0] || 'Operador'),
               email: user.email || 'anonimo@impactox.com',
-              cargo: user.isAnonymous ? 'Convidado' : 'Operador',
+              cargo: isAdminEmail ? 'ADMIN' : 'Operador',
               avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${user.uid}`,
               cor: 'from-sky-500 to-blue-700'
             };
@@ -110,12 +79,17 @@ const App: React.FC = () => {
               await db.users.setProfile(user.uid, profile);
             } catch (err: any) {
               console.error("Erro ao criar perfil:", err);
-              setAuthError("Erro ao criar perfil de usuário. Verifique as permissões.");
+              setAuthError(`Erro ao criar perfil para ${user.email}. Verifique as permissões do banco de dados.`);
               setCurrentUser(null);
               setIsInitializing(false);
               return;
             }
+          } else if (isAdminEmail && profile.cargo !== 'ADMIN') {
+            // Atualiza para ADMIN se o e-mail estiver na lista mas o perfil ainda não for ADMIN
+            profile.cargo = 'ADMIN';
+            await db.users.setProfile(user.uid, profile);
           }
+
           setCurrentUser(profile);
           await db.users.updatePresence(user.uid, true);
         } else {
@@ -125,7 +99,7 @@ const App: React.FC = () => {
         }
       } catch (err: any) {
         console.error("Erro na inicialização de perfil:", err);
-        setAuthError("Erro ao carregar perfil de usuário. Tente novamente.");
+        setAuthError(`Erro ao carregar perfil (${user?.email || 'sem e-mail'}). Tente fazer Logout e entrar novamente.`);
       } finally {
         setIsInitializing(false);
         clearTimeout(timeout);
@@ -219,7 +193,7 @@ const App: React.FC = () => {
     await db.settings.save({ whatsappTemplate: newTemplate });
   };
 
-  const checkVencimentos = async () => {
+  const checkVencimentos = React.useCallback(async () => {
     if (!capitacoes.length) return;
     
     const hoje = new Date();
@@ -254,45 +228,31 @@ const App: React.FC = () => {
         await db.capitacoes.updateStatus(ponto.id.toString(), novoStatus);
       }
 
-      // Lógica de notificação (apenas se for exatamente 5 dias e ainda não enviado)
+      // Lógica de notificação WhatsApp (apenas se for exatamente 5 dias e ainda não enviado)
       if (dataTermino === cincoDiasDepoisStr && !ponto.aviso5DiasEnviado && novoStatus === 'vencendo') {
-        const titulo = '⚠️ Alerta de Vencimento';
-        const corpo = `O ponto ${ponto.nome} vence em 5 dias (${ponto.dataTermino}).`;
+        const msg = encodeURIComponent(whatsappTemplate.replace('[nome]', ponto.nome).replace('[data]', ponto.dataTermino).replace('[empreendimento]', ponto.empreendimentoNome));
         
-        console.log(`Disparando notificação para: ${ponto.nome}`);
-        
-        // 1. Notificação Local (Navegador/Celular)
-        if (Notification.permission === 'granted') {
-          new Notification(titulo, {
-            body: corpo,
-            icon: '/assets/logo.png',
-            badge: '/assets/logo.png',
-            tag: `vencimento-${ponto.id}`
-          });
-        }
-
-        // 2. Log de WhatsApp (mantendo a lógica original para referência)
-        const msgWhatsapp = whatsappTemplate
-          .replace('[nome]', ponto.nome)
-          .replace('[data]', ponto.dataTermino)
-          .replace('[empreendimento]', ponto.empreendimentoNome);
-        console.log(`Mensagem WhatsApp preparada: ${msgWhatsapp}`);
+        console.log(`Notificação de 5 dias para: ${ponto.nome}`);
+        console.log(`Mensagem: ${decodeURIComponent(msg)}`);
         
         // Atualiza no banco que o aviso foi processado
         await db.capitacoes.updateAvisoEnviado(ponto.id.toString());
       }
     }
-  };
+  }, [capitacoes, whatsappTemplate]);
 
   useEffect(() => {
+    // Executa uma vez quando os dados carregam
     if (capitacoes.length > 0) {
       checkVencimentos();
     }
-    
+  }, [capitacoes.length > 0]); // Só dispara quando sai de 0 para > 0
+
+  useEffect(() => {
     const handleTrigger = () => checkVencimentos();
     window.addEventListener('trigger-vencimento-check', handleTrigger);
     return () => window.removeEventListener('trigger-vencimento-check', handleTrigger);
-  }, [capitacoes]);
+  }, [checkVencimentos]);
 
   const handleImportData = async (data: any) => {
     if (!currentUser) return;
@@ -395,9 +355,27 @@ const App: React.FC = () => {
   if (isInitializing) {
     return (
       <div className="h-screen w-screen bg-[#020617] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-sky-500/20 border-t-sky-500 rounded-full animate-spin"></div>
-          <p className="text-sky-500/50 text-[10px] font-black uppercase tracking-widest animate-pulse">Impacto X Terminal...</p>
+        <div className="flex flex-col items-center gap-4 max-w-xs text-center">
+          {authError ? (
+            <>
+              <AlertCircle className="text-red-500 w-12 h-12 mb-2" />
+              <p className="text-red-400 text-xs font-bold">{authError}</p>
+              <button 
+                onClick={async () => {
+                  await db.auth.logout();
+                  window.location.reload();
+                }}
+                className="mt-4 px-6 py-2 bg-red-500/10 border border-red-500/20 text-red-500 text-[8px] font-black uppercase tracking-widest rounded-full hover:bg-red-500/20 transition-all"
+              >
+                Sair e Tentar Novamente
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="w-12 h-12 border-4 border-sky-500/20 border-t-sky-500 rounded-full animate-spin"></div>
+              <p className="text-sky-500/50 text-[10px] font-black uppercase tracking-widest animate-pulse">Impacto X Terminal...</p>
+            </>
+          )}
           <button 
             onClick={() => setIsInitializing(false)}
             className="mt-8 px-6 py-2 bg-slate-900 border border-slate-800 text-slate-500 text-[8px] font-black uppercase tracking-widest rounded-full hover:bg-slate-800 hover:text-white transition-all"
@@ -617,6 +595,7 @@ const App: React.FC = () => {
             isSyncing={isSyncing} lastSync={""} onSync={() => refreshData()}
             onLogout={handleLogout} systemName={systemName} onSystemNameChange={handleSystemNameChange}
             whatsappTemplate={whatsappTemplate} onWhatsappTemplateChange={handleWhatsappTemplateChange}
+            onCheckVencimentos={checkVencimentos}
           />
         )}
       </Layout>
