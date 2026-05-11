@@ -506,6 +506,10 @@ const App: React.FC = () => {
               setNewType('capitacao');
               setActiveTab('Novo');
             }}
+            onUpdateStatus={async (id, status) => {
+              await db.capitacoes.updateStatus(id.toString(), status);
+              await refreshData();
+            }}
             onImport={handleImportData}
             onImportFile={handleImportFile}
           />

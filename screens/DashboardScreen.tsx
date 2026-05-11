@@ -70,8 +70,8 @@ const DashboardScreen: React.FC<Props> = ({
     const filtered = safeCapitacoes.filter((c: Capitacao) => {
       const matchesEmp = filterEmp === 'all' || String(c.empreendimentoId) === String(filterEmp);
       
-      const currentStatus = calculateStatus(c.dataTermino);
-      const matchesStatus = statusFilter === 'all' || (statusFilter === 'inativo' ? c.status === 'inativo' : currentStatus === statusFilter);
+      const actualStatus = c.status === 'inativo' ? 'inativo' : calculateStatus(c.dataTermino);
+      const matchesStatus = statusFilter === 'all' || actualStatus === statusFilter;
       
       const matchesDate = (startDate === '' || c.dataTermino >= startDate) && 
                          (endDate === '' || c.dataTermino <= endDate);
@@ -149,6 +149,11 @@ const DashboardScreen: React.FC<Props> = ({
 
     const globalTotalMargem = safeCapitacoes.reduce((a, b: Capitacao) => a + (Number(b.margem) || 0), 0);
 
+    const ativosStats = filtered.filter((c: Capitacao) => c.status !== 'inativo' && calculateStatus(c.dataTermino) === 'ativo').length;
+    const vencendoStats = filtered.filter((c: Capitacao) => c.status !== 'inativo' && calculateStatus(c.dataTermino) === 'vencendo').length;
+    const vencidosStats = filtered.filter((c: Capitacao) => c.status !== 'inativo' && calculateStatus(c.dataTermino) === 'vencido').length;
+    const inativosStats = filtered.filter((c: Capitacao) => c.status === 'inativo').length;
+
     const avgPercentual = filtered.length > 0
       ? filtered.reduce((acc, curr) => {
           const margem = Number(curr.margem) || 0;
@@ -164,9 +169,10 @@ const DashboardScreen: React.FC<Props> = ({
       totalMargem,
       globalTotalMargem,
       avgPercentual,
-      ativos,
-      vencendo,
-      vencidos,
+      ativos: ativosStats,
+      vencendo: vencendoStats,
+      vencidos: vencidosStats,
+      inativos: inativosStats,
       count: filtered.length,
       empreendimentosUnicos,
       statusData,
@@ -686,13 +692,14 @@ const DashboardScreen: React.FC<Props> = ({
                       <td className="py-4 text-center">
                         <span className={`px-3 py-1 rounded-full text-[7px] font-black uppercase tracking-widest border ${
                           original ? (
+                            original.status === 'inativo' ? 'bg-slate-800 text-slate-500 border-slate-700' :
                             calculateStatus(original.dataTermino) === 'ativo' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
                             calculateStatus(original.dataTermino) === 'vencendo' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
                             calculateStatus(original.dataTermino) === 'vencido' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' :
                             'bg-slate-800 text-slate-400 border-slate-700'
                           ) : 'bg-slate-800 text-slate-400 border-slate-700'
                         }`}>
-                          {original ? calculateStatus(original.dataTermino) : 'inativo'}
+                          {original ? (original.status === 'inativo' ? 'inativo' : calculateStatus(original.dataTermino)) : 'inativo'}
                         </span>
                       </td>
                     </tr>

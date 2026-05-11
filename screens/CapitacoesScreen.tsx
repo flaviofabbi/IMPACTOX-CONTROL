@@ -12,12 +12,13 @@ interface Props {
   onDelete: (id: string | number) => void;
   onDeleteInactive?: () => void;
   onUpdate: (item: Capitacao) => void;
+  onUpdateStatus?: (id: string | number, status: 'ativo' | 'vencendo' | 'vencido' | 'inativo') => void;
   onImport: (data: any) => void;
   onImportFile?: (file: File) => void;
   logoUrl: string;
 }
 
-const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDelete, onDeleteInactive, onUpdate, logoUrl }) => {
+const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDelete, onDeleteInactive, onUpdate, onUpdateStatus, logoUrl }) => {
   const [searchTerm, setSearchTerm] = useState('');
   
   const [filters, setFilters, resetFilters] = usePersistentFilters('capitacoes_filters', {
@@ -246,14 +247,16 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDele
 
       <div className="flex flex-col gap-3">
         {filteredItems.map((item) => {
-          const currentStatus = calculateStatus(item.dataTermino);
+          const currentStatus = item.status === 'inativo' ? 'inativo' : calculateStatus(item.dataTermino);
           const isAtivo = currentStatus === 'ativo';
           const isVencendo = currentStatus === 'vencendo';
           const isVencido = currentStatus === 'vencido';
+          const isInativo = currentStatus === 'inativo';
 
           const statusColor = isAtivo ? 'bg-emerald-500' : 
                              isVencendo ? 'bg-amber-500' :
-                             isVencido ? 'bg-rose-500' : 'bg-slate-600';
+                             isVencido ? 'bg-rose-500' : 
+                             isInativo ? 'bg-slate-500' : 'bg-slate-600';
 
           return (
             <div 
@@ -322,6 +325,26 @@ const CapitacoesScreen: React.FC<Props> = ({ capitacoes, empreendimentos, onDele
 
                   {/* Quick Actions */}
                   <div className="flex items-center gap-2">
+                    {onUpdateStatus && (
+                      <button 
+                        type="button"
+                        onClick={(e) => { 
+                          e.preventDefault(); 
+                          e.stopPropagation(); 
+                          const nextStatus = item.status === 'inativo' ? calculateStatus(item.dataTermino) : 'inativo';
+                          onUpdateStatus(item.id, nextStatus); 
+                        }}
+                        className={`p-2.5 border rounded-xl transition-all active:scale-90 cursor-pointer ${
+                          item.status === 'inativo' 
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500 hover:text-white' 
+                            : 'bg-slate-500/10 text-slate-400 border-slate-500/20 hover:bg-slate-500 hover:text-white'
+                        }`}
+                        title={item.status === 'inativo' ? "Reativar" : "Inativar"}
+                      >
+                        {item.status === 'inativo' ? <CheckCircle size={16} /> : <CircleX size={16} />}
+                      </button>
+                    )}
+
                     <button 
                       type="button"
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); onUpdate(item); }}
